@@ -1,0 +1,14 @@
+FFmpeg README
+-------------
+
+1) Documentation
+----------------
+
+* Read the documentation in the doc/ directory.
+
+2) Licensing
+------------
+
+* See the LICENSE file.
+
+3) This is a modified version of ffmpeg with support for selective decoding.
