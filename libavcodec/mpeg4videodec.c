@@ -34,6 +34,7 @@
 #define MB_TYPE_B_VLC_BITS 4
 
 #undef printf	//feipeng: for debugging
+#undef fprintf  //feipeng: for logging dependency
 
 static VLC dc_lum, dc_chrom;
 static VLC sprite_trajectory;
@@ -847,7 +848,7 @@ int ff_mpeg4_decode_partitions(MpegEncContext *s)
  * @return <0 if an error occurred
  */
 static inline int mpeg4_decode_block_dep(MpegEncContext * s, DCTELEM * block,
-                              int n, int coded, int intra, int rvlc)
+                              int n, int coded, int intra, int rvlc, unsigned char * dcp)
 {
     int level, i, last, run;
     int dc_pred_dir;
@@ -871,8 +872,9 @@ static inline int mpeg4_decode_block_dep(MpegEncContext * s, DCTELEM * block,
             level = mpeg4_decode_dc(s, n, &dc_pred_dir);
 	    //1: top, 0: left
 	    //feipeng: for dependency computation
-	    printf("<<<<<%d:\n", dc_pred_dir);
+	    //printf("<<<<<%d:\n", dc_pred_dir);
 	    //printf("level: %d\n", level);
+	    *dcp |= (dc_pred_dir << n);		//added to calculate the dc prediction direction
             if (level < 0)
                 return -1;
         }
@@ -1413,6 +1415,7 @@ static int mpeg4_decode_mb_dep(MpegEncContext *s,
     int16_t *mot_val;
     static int8_t quant_tab[4] = { -1, -2, 1, 2 };
     const int xy= s->mb_x + s->mb_y * s->mb_stride;
+    unsigned char l_dcp = 0;
 
     assert(s->h263_pred);
     #undef printf
@@ -1731,8 +1734,9 @@ intra:
         /* decode each block */
         for (i = 0; i < 6; i++) {
 	    //#undef printf
-	    //printf("~~~~~before mpeg4_decode_block: %d, %d, %x\n", i, get_bits_count(&s->gb), show_bits(&s->gb, 24));
-            if (mpeg4_decode_block(s, block[i], i, cbp&32, 1, 0) < 0) {
+	    //printf("~~~~~before mpeg4_decode_block_dep: %d, %d, %x\n", i, get_bits_count(&s->gb), show_bits(&s->gb, 24));
+            if (mpeg4_decode_block_dep(s, block[i], i, cbp&32, 1, 0, &l_dcp) < 0) {
+		fprintf(s->avctx->g_dcPredF, "%d:%d:%d:%d:\n", s->avctx->dep_video_packet_num, s->mb_x, s->mb_y, l_dcp);
                 return -1;
 	    }
             cbp+=cbp;
@@ -1743,13 +1747,15 @@ intra:
     /* decode each block */
     //feipeng: for non-I frame
     for (i = 0; i < 6; i++) {
-        if (mpeg4_decode_block(s, block[i], i, cbp&32, 0, 0) < 0) {
+        if (mpeg4_decode_block_dep(s, block[i], i, cbp&32, 0, 0, &l_dcp) < 0) {
 	    printf("mpeg4_decode_block error\n");
+	    fprintf(s->avctx->g_dcPredF, "%d:%d:%d:%d:\n", s->avctx->dep_video_packet_num, s->mb_x, s->mb_y, l_dcp);
             return -1;
 	}
         cbp+=cbp;
     }
 end:
+    fprintf(s->avctx->g_dcPredF, "%d:%d:%d:%d:\n", s->avctx->dep_video_packet_num, s->mb_x, s->mb_y, l_dcp);
 
         /* per-MB end of slice check */
     if(s->codec_id==CODEC_ID_MPEG4){
@@ -1765,13 +1771,12 @@ end:
                 return SLICE_OK;
 	    #undef printf
 	    //at slice end, the bits position is the end of the bit stream, so it's end of mb, +1 to get next bit pos
-	    printf("SLICE_END\n");
-    	    printf("<<<%d:\n", get_bits_count(&s->gb) + 1);
+	    //printf("SLICE_END\n");
+    	    //printf("<<<%d:\n", get_bits_count(&s->gb) + 1);
             return SLICE_END;
         }
     }
-    #undef printf
-    printf("<<<%d:\n", get_bits_count(&s->gb));
+    //printf("<<<%d:\n", get_bits_count(&s->gb));
     return SLICE_OK;
 }
 
@@ -2153,13 +2158,13 @@ end:
                 return SLICE_OK;
 	    #undef printf
 	    //at slice end, the bits position is the end of the bit stream, so it's end of mb, +1 to get next bit pos
-	    printf("SLICE_END\n");
-    	    printf("<<<%d:\n", get_bits_count(&s->gb) + 1);
+	    //printf("SLICE_END\n");
+    	    //printf("<<<%d:\n", get_bits_count(&s->gb) + 1);
             return SLICE_END;
         }
     }
     #undef printf
-    printf("<<<%d:\n", get_bits_count(&s->gb));
+    //printf("<<<%d:\n", get_bits_count(&s->gb));
     return SLICE_OK;
 }
 
@@ -2935,8 +2940,8 @@ AVCodec ff_mpeg4_decoder = {
     decode_init,
     NULL,
     ff_h263_decode_end,
-    ff_h263_decode_frame,
-    ff_h263_decode_frame_dep,
+    .decode = ff_h263_decode_frame,
+    .decode_dep = ff_h263_decode_frame_dep,
     CODEC_CAP_DRAW_HORIZ_BAND | CODEC_CAP_DR1 | CODEC_CAP_TRUNCATED | CODEC_CAP_DELAY | CODEC_CAP_FRAME_THREADS,
     .flush= ff_mpeg_flush,
     .max_lowres= 3,
@@ -2955,8 +2960,8 @@ AVCodec ff_mpeg4_vdpau_decoder = {
     decode_init,
     NULL,
     ff_h263_decode_end,
-    ff_h263_decode_frame,
-    ff_h263_decode_frame_dep,
+    .decode = ff_h263_decode_frame,
+    .decode_dep = ff_h263_decode_frame_dep,
     CODEC_CAP_DR1 | CODEC_CAP_TRUNCATED | CODEC_CAP_DELAY | CODEC_CAP_HWACCEL_VDPAU,
     .long_name= NULL_IF_CONFIG_SMALL("MPEG-4 part 2 (VDPAU)"),
     .pix_fmts= (const enum PixelFormat[]){PIX_FMT_VDPAU_MPEG4, PIX_FMT_NONE},

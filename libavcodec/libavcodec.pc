@@ -9,6 +9,6 @@ Version: 52.117.0
 Requires: 
 Requires.private: 
 Conflicts:
-Libs: -L${libdir} -lavcodec -lm -pthread
+Libs: -L${libdir} -lavcodec -lm -pthread -lz
 Libs.private: 
 Cflags: -I${includedir}

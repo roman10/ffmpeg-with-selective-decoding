@@ -271,18 +271,18 @@ if(s->quarter_sample)
     //printf("mpeg_motion: mb (%d, %d), motion (%d, %d); src pixel pos(%d, %d)\n", s->mb_y, s->mb_x, motion_y, motion_x, src_y, src_x);
     if ((src_x % 16 == 0) && (src_y % 16 == 0)) {
 	//a single mb contains the entire reference mb
-	printf("&&&%d:%d:%d:%d:\n", s->mb_y, s->mb_x, src_y/16, src_x/16);
+	//printf("&&&%d:%d:%d:%d:\n", s->mb_y, s->mb_x, src_y/16, src_x/16);
     } else if (src_x % 16 == 0) {
 	//  RA  two mb contains the entire reference mb
 	//  RB
-	printf("&&&%d:%d:%d:%d:%d:%d:\n", s->mb_y, s->mb_x, src_y/16, src_x/16, src_y/16 + 1, src_x/16);
+	//printf("&&&%d:%d:%d:%d:%d:%d:\n", s->mb_y, s->mb_x, src_y/16, src_x/16, src_y/16 + 1, src_x/16);
     } else if (src_y % 16 == 0) {
 	//  RA RB: two mb contains the entire reference mb
-	printf("&&&%d:%d:%d:%d:%d:%d:\n", s->mb_y, s->mb_x, src_y/16, src_x/16, src_y/16, src_x/16 + 1);
+	//printf("&&&%d:%d:%d:%d:%d:%d:\n", s->mb_y, s->mb_x, src_y/16, src_x/16, src_y/16, src_x/16 + 1);
     } else { 
 	//  RA RB: four mb contains the entire reference mb
         //  RC RC
-	printf("&&&%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:\n", s->mb_y, s->mb_x, src_y/16, src_x/16, src_y/16+1, src_x/16, src_y/16, src_x/16+1, src_y/16+1, src_x/16+1);	
+	//printf("&&&%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:\n", s->mb_y, s->mb_x, src_y/16, src_x/16, src_y/16+1, src_x/16, src_y/16, src_x/16+1, src_y/16+1, src_x/16+1);	
     }
 
     if (!is_mpeg12 && s->out_format == FMT_H263) {

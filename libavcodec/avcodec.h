@@ -2917,7 +2917,18 @@ typedef struct AVCodecContext {
     unsigned char **selected_mb_mask;
     unsigned char **pred_dc_dir;
     //int roi_start_mb_x, roi_start_mb_y, roi_end_mb_x, roi_end_mb_y;
-
+    int dump_dependency;
+    /*char *dep_gop_file_name;
+    char *dep_intra_file_name;
+    char *dep_inter_file_name;
+    char *dep_mb_pos_file_name;
+    char *dep_dcp_file_name;*/
+    FILE *g_mbPosF;
+    FILE *g_intraDepF;
+    FILE *g_interDepF;
+    FILE *g_dcPredF;
+    FILE *g_gopF;
+    unsigned int dep_video_packet_num;
 } AVCodecContext;
 
 /**
