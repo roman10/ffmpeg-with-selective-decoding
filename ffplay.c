@@ -26,6 +26,9 @@ TODO: 1. need to clear the frame buffer before decoding next frame, otherwise, t
 #include <libavcodec/opt.h>
 #include <libavcodec/avfft.h>
 
+/*multi-thread support*/
+#include <pthread.h>
+
 #include "dependency.h"
 
 /*these two lines are necessary for compilation*/
@@ -57,26 +60,28 @@ static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, 
  	    l_roiEh = l_roiEh * (gVideoCodecCtx->height/16) / gVideoCodecCtx->height;
 	    l_roiEw = l_roiEw * (gVideoCodecCtx->width/16) / gVideoCodecCtx->width;
 	    //3.1 check if it's a beginning of a gop, if so, load the pre computation result and compute the inter frame dependency
+	    LOGI(10, "decode roi (%d:%d) to (%d:%d)", l_roiSh, l_roiSw, l_roiEh, l_roiEw);
             prepare_decode_of_gop(gGopStart[li], gGopEnd[li], l_roiSh, l_roiSw, l_roiEh, l_roiEw);
             break;
         } else if (gVideoPacketNum < gGopEnd[li]) {
             break;
         }
     }
-    decode_a_video_packet(_roiSh, _roiSw, _roiEh, _roiEw);
+    decode_a_video_packet(gRoiSh, gRoiSw, gRoiEh, gRoiEw);
     if (gVideoPicture.data.linesize[0] != 0) {
-        //dump_frame_to_file(gVideoPacketNum);
+        dump_frame_to_file(gVideoPacketNum);
     }
+    avpicture_free(&gVideoPicture.data);
 }
 
-static void init(char *pFileName) {
+static void init(char *pFileName, int pDebug) {
     int l_mbH, l_mbW;
-    get_video_info(pFileName);
+    get_video_info(pFileName, pDebug);
+    gVideoPacketNum = 0;
+#ifdef SELECTIVE_DECODING
     if (!gVideoCodecCtx->dump_dependency) {
 	load_gop_info(gVideoCodecCtx->g_gopF);
     }
-    gVideoPacketNum = 0;
-#ifdef SELECTIVE_DECODING
     l_mbH = (gVideoCodecCtx->height + 15) / 16;
     l_mbW = (gVideoCodecCtx->width + 15) / 16;
     allocate_selected_decoding_fields(l_mbH, l_mbW);
@@ -86,11 +91,14 @@ static void init(char *pFileName) {
 
 static void close() {
     int l_mbH = (gVideoCodecCtx->height + 15) / 16;
-    free_selected_decoding_fields(l_mbH);
     /*close the video codec*/
     avcodec_close(gVideoCodecCtx);
     /*close the video file*/
     av_close_input_file(gFormatCtx);
+#ifdef SELECTIVE_DECODING
+    free_selected_decoding_fields(l_mbH);
+#endif 
+#if defined(SELECTIVE_DECODING) || defined(NORM_DECODE_DEBUG)
     /*close all dependency files*/
     fclose(gVideoCodecCtx->g_mbPosF);
     fclose(gVideoCodecCtx->g_intraDepF);
@@ -99,6 +107,8 @@ static void close() {
     if (gVideoCodecCtx->dump_dependency) {
         fclose(gVideoCodecCtx->g_gopF);
     }
+#endif
+    LOGI(10, "clean up done");
 }
 
 int main(int argc, char **argv) {
@@ -111,14 +121,22 @@ int main(int argc, char **argv) {
 
     /*number of input parameter is less than 1*/
     if (argc < 2) {
-        LOGE(1, "usage: ./ffplay <videoFilename>");
+        LOGE(1, "usage: ./ffplay <videoFilename> [debug]");
         return 0;
     }    
-    init(argv[1]);
+    if (argc == 3) {
+	l_i = atoi(argv[2]);
+    }
 
-    for (l_i = 0; l_i < 500; ++l_i) {
-	//render_a_frame(gVideoCodecCtx->width, gVideoCodecCtx->height, 0, 0, 10, 45);
-	dep_decode_a_video_packet();
+    init(argv[1], l_i);
+
+    for (l_i = 0; l_i < 12; ++l_i) {
+#if defined(SELECTIVE_DECODING) || defined(NORM_DECODE_DEBUG)
+	//dep_decode_a_video_packet();		//dump dependency
+	render_a_frame(gVideoCodecCtx->width, gVideoCodecCtx->height, 0, 0, 1, 25);	//decode frame
+#else
+	render_a_frame(gVideoCodecCtx->width, gVideoCodecCtx->height, 0, 0, 10, 25);	//decode frame
+#endif
     }
    
     close();

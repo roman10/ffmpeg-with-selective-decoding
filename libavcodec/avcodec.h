@@ -2929,6 +2929,8 @@ typedef struct AVCodecContext {
     FILE *g_dcPredF;
     FILE *g_gopF;
     unsigned int dep_video_packet_num;
+    /*Feipeng: added for debugging*/
+    int debug_selective;
 } AVCodecContext;
 
 /**

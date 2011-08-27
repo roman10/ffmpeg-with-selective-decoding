@@ -156,7 +156,7 @@ static int get_consumed_bytes(MpegEncContext *s, int buf_size){
     }
 }
 
-static int selective_decode_slice(MpegEncContext *s){
+static int decode_slice(MpegEncContext *s){
     const int part_mask= s->partitioned_frame ? (AC_END|AC_ERROR) : 0x7F;
     const int mb_size= 16>>s->avctx->lowres;
 
@@ -193,7 +193,6 @@ static int selective_decode_slice(MpegEncContext *s){
     //printf("~~~~~~~~~~~~~~~~~~~starting decoding of macroblocks: %d, %d!\n", s->mb_height, s->mb_width);
     //s->mb_y = 10;
     //printf("s->mb_y: %d\n", s->mb_y);
-
     for(; s->mb_y < s->mb_height; s->mb_y++) {
         /* per-row end of slice checks */
         if(s->msmpeg4_version){
@@ -369,7 +368,7 @@ static int selective_decode_slice(MpegEncContext *s){
     return -1;
 }
 
-static int selective_decode_slice_dep(MpegEncContext *s){
+static int decode_slice_dep(MpegEncContext *s){
     const int part_mask= s->partitioned_frame ? (AC_END|AC_ERROR) : 0x7F;
     const int mb_size= 16>>s->avctx->lowres;
 
@@ -406,13 +405,12 @@ static int selective_decode_slice_dep(MpegEncContext *s){
     //printf("~~~~~~~~~~~~~~~~~~~starting decoding of macroblocks: %d, %d!\n", s->mb_height, s->mb_width);
     //s->mb_y = 10;
     //printf("s->mb_y: %d\n", s->mb_y);
-
+#undef fprintf
     for(; s->mb_y < s->mb_height; s->mb_y++) {
         /* per-row end of slice checks */
         if(s->msmpeg4_version){
             if(s->resync_mb_y + s->slice_height == s->mb_y){
                 ff_er_add_slice(s, s->resync_mb_x, s->resync_mb_y, s->mb_x-1, s->mb_y, AC_END|DC_END|MV_END);
-
                 return 0;
             }
         }
@@ -429,6 +427,7 @@ static int selective_decode_slice_dep(MpegEncContext *s){
         //[FEIPENG:TEST]: decode the first frame, then test for subsequent frames
         //return 0;
         for(; s->mb_x < s->mb_width; s->mb_x++) {
+            fprintf(s->avctx->g_interDepF, "%d:%d:%d:", s->avctx->dep_video_packet_num, s->mb_y, s->mb_x);
             int ret;
             ff_update_block_index(s);
 
@@ -442,7 +441,6 @@ static int selective_decode_slice_dep(MpegEncContext *s){
             s->mv_dir = MV_DIR_FORWARD;
             s->mv_type = MV_TYPE_16X16;
 //            s->mb_skipped = 0;
-	    #undef fprintf    //feipeng
 	    fprintf(s->avctx->g_mbPosF, "%d:%d:%d:%d:", s->avctx->dep_video_packet_num, s->mb_y, s->mb_x, get_bits_count(&s->gb));
 	    /*feipeng: added for selective decoding, skip the unnecessary mbs*/
 	    /*if (s->avctx->allow_selective_decoding && s->avctx->selected_mb_mask[s->mb_y][s->mb_x] == 0) {
@@ -455,7 +453,7 @@ static int selective_decode_slice_dep(MpegEncContext *s){
 		continue;
 	    }*/
 	    //after decoding, s->block will contain the decoded value
-            ret= s->decode_mb(s, s->block);
+            ret= s->decode_mb_dep(s, s->block);
 	    //update the motion vectors 
             if (s->pict_type!=FF_B_TYPE)
                 ff_h263_update_motion_val(s);
@@ -463,7 +461,7 @@ static int selective_decode_slice_dep(MpegEncContext *s){
             if(ret<0){
                 const int xy= s->mb_x + s->mb_y*s->mb_stride;
                 if(ret==SLICE_END){
-                    MPV_decode_mb(s, s->block);
+                    MPV_decode_mb_dep(s, s->block);
                     if(s->loop_filter)
                         ff_h263_loop_filter(s);
 
@@ -494,7 +492,8 @@ static int selective_decode_slice_dep(MpegEncContext *s){
             }
 	    //feipeng: it's not necessary to be selective here, as the filtering is already done in code above
 	    //if ((s->avctx->allow_selective_decoding == 0) || ((s->avctx->allow_selective_decoding == 1) && (s->avctx->selected_mb_mask[s->mb_y][s->mb_x] == 1))){
-                MPV_decode_mb(s, s->block);
+                MPV_decode_mb_dep(s, s->block);
+		fprintf(s->avctx->g_interDepF, "\n");
 	    //} 
             if(s->loop_filter)
                 ff_h263_loop_filter(s);
@@ -505,7 +504,6 @@ static int selective_decode_slice_dep(MpegEncContext *s){
 
         s->mb_x= 0;
     }
-
     assert(s->mb_x==0 && s->mb_y==s->mb_height);
 
     if(s->codec_id==CODEC_ID_MPEG4
@@ -595,7 +593,7 @@ int ff_h263_decode_frame(AVCodecContext *avctx,
     AVFrame *pict = data;
 
     #undef printf
-    //printf("ff_h263_decode_frame: s->height: %d; s->width: %d\n", s->height, s->width);
+    printf("ff_h263_decode_frame: s->height: %d; s->width: %d\n", s->height, s->width);
 #ifdef PRINT_FRAME_TIME
 uint64_t time= rdtsc();
 #endif
@@ -965,7 +963,7 @@ retry:
     //memset(s->current_picture_ptr->data[2], 0x00, s->current_picture_ptr->linesize[2]);
     //memset(s->current_picture_ptr->data[3], 0x00, s->current_picture_ptr->linesize[3]);
     /*[TODO:]decode_slice fill in the decoded blocks, but somehow the previous decoded blocks carries over*/
-    selective_decode_slice(s);
+    decode_slice(s);
 
     while(s->mb_y<s->mb_height){
         if(s->msmpeg4_version){
@@ -980,7 +978,7 @@ retry:
             ff_mpeg4_clean_buffers(s);
 	#undef printf
 	//printf("decode_slice ~~~~~~~~~s->mb_y=%d, s->mb_x=%d\n", s->mb_y, s->mb_x);
-        selective_decode_slice(s);
+        decode_slice(s);
     }
 
     if (s->h263_msmpeg4 && s->msmpeg4_version<4 && s->pict_type==FF_I_TYPE)
@@ -1065,7 +1063,7 @@ int ff_h263_decode_frame_dep(AVCodecContext *avctx,
     AVFrame *pict = data;
 
     #undef printf
-    printf("ff_h263_decode_frame_dep: s->height: %d; s->width: %d\n", s->height, s->width);
+    printf("ff_h263_decode_frame_dep: %d: s->height: %d; s->width: %d\n", avctx->dep_video_packet_num, s->height, s->width);
 #ifdef PRINT_FRAME_TIME
 uint64_t time= rdtsc();
 #endif
@@ -1397,7 +1395,7 @@ retry:
     //*pict= *(AVFrame*)s->current_picture_ptr;
     //*data_size = sizeof(AVFrame);
     /*[TODO:]decode_slice fill in the decoded blocks, but somehow the previous decoded blocks carries over*/
-    selective_decode_slice_dep(s);
+    decode_slice_dep(s);
 
     while(s->mb_y<s->mb_height){
         if(s->msmpeg4_version){
@@ -1409,7 +1407,7 @@ retry:
         }
         if(s->msmpeg4_version<4 && s->h263_pred)
             ff_mpeg4_clean_buffers(s);
-        selective_decode_slice_dep(s);
+        decode_slice_dep(s);
     }
 
     if (s->h263_msmpeg4 && s->msmpeg4_version<4 && s->pict_type==FF_I_TYPE)

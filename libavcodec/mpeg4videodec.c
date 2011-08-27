@@ -496,7 +496,7 @@ static inline int get_amv(MpegEncContext *s, int n){
  * @param dir_ptr the prediction direction will be stored here
  * @return the quantized dc
  */
-static inline int mpeg4_decode_dc(MpegEncContext * s, int n, int *dir_ptr)
+static inline int mpeg4_decode_dc(MpegEncContext * s, int n, int *dir_ptr, int dump_dep)
 {
     int level, code;
 
@@ -535,7 +535,11 @@ static inline int mpeg4_decode_dc(MpegEncContext * s, int n, int *dir_ptr)
     }
     //#undef printf
     //printf("n: %d; level: %d: next 4 bytes: %x\n", n, level, show_bits(&s->gb, 32));
-    return ff_mpeg4_pred_dc(s, n, level, dir_ptr, 0);
+    if (dump_dep) {
+        return ff_mpeg4_pred_dc_dep(s, n, level, dir_ptr, 0);
+    } else {
+	return ff_mpeg4_pred_dc(s, n, level, dir_ptr, 0);
+    }
 }
 
 /**
@@ -588,7 +592,7 @@ static int mpeg4_decode_partition_a(MpegEncContext *s){
                 s->mbintra_table[xy]= 1;
                 for(i=0; i<6; i++){
                     int dc_pred_dir;
-                    int dc= mpeg4_decode_dc(s, i, &dc_pred_dir);
+                    int dc= mpeg4_decode_dc(s, i, &dc_pred_dir, 0);
                     if(dc < 0){
                         av_log(s->avctx, AV_LOG_ERROR, "DC corrupted at %d %d\n", s->mb_x, s->mb_y);
                         return -1;
@@ -751,7 +755,7 @@ static int mpeg4_decode_partition_b(MpegEncContext *s, int mb_count){
 
                     for(i=0; i<6; i++){
                         int dc_pred_dir;
-                        int dc= mpeg4_decode_dc(s, i, &dc_pred_dir);
+                        int dc= mpeg4_decode_dc(s, i, &dc_pred_dir, 0);
                         if(dc < 0){
                             av_log(s->avctx, AV_LOG_ERROR, "DC corrupted at %d %d\n", s->mb_x, s->mb_y);
                             return -1;
@@ -859,7 +863,7 @@ static inline int mpeg4_decode_block_dep(MpegEncContext * s, DCTELEM * block,
 
     #undef printf
     //Note intra & rvlc should be optimized away if this is inlined
-
+    //printf("mpeg4_decode_block_dep\n");
     if(intra) {
       if(s->use_intra_dc_vlc){
         /* DC coef */
@@ -869,10 +873,11 @@ static inline int mpeg4_decode_block_dep(MpegEncContext * s, DCTELEM * block,
             else    level= FASTDIV((level + (s->c_dc_scale>>1)), s->c_dc_scale);
             dc_pred_dir= (s->pred_dir_table[s->mb_x + s->mb_y*s->mb_stride]<<n)&32;
         }else{
-            level = mpeg4_decode_dc(s, n, &dc_pred_dir);
+            level = mpeg4_decode_dc(s, n, &dc_pred_dir, 1);
 	    //1: top, 0: left
 	    //feipeng: for dependency computation
-	    //printf("<<<<<%d:\n", dc_pred_dir);
+	    //fprintf(s->avctx->g_dcPredF, "<<<<<%d:\n", dc_pred_dir);
+	    //fprintf(s->avctx->g_dcPredF, "%d:%d:%d:%d\n", s->avctx->dep_video_packet_num, s->mb_x, s->mb_y, dc_pred_dir);
 	    //printf("level: %d\n", level);
 	    *dcp |= (dc_pred_dir << n);		//added to calculate the dc prediction direction
             if (level < 0)
@@ -882,7 +887,31 @@ static inline int mpeg4_decode_block_dep(MpegEncContext * s, DCTELEM * block,
         i = 0;
       }else{
             i = -1;
-            ff_mpeg4_pred_dc(s, n, 0, &dc_pred_dir, 0);
+            ff_mpeg4_pred_dc_dep(s, n, 0, &dc_pred_dir, 0);
+      }
+      /*feipeng: added to note down the intra-frame dependency due to differential encoding of DC values*/
+      switch (n) {
+          case 0:
+	  case 4:
+	  case 5:
+              if ((dc_pred_dir == 0) && (s->mb_x > 0)) {	//left
+	          fprintf(s->avctx->g_intraDepF, "%d:%d:", s->mb_y, s->mb_x-1);
+              } else if ((dc_pred_dir == 1) && (s->mb_y > 0)) {	//top
+		  fprintf(s->avctx->g_intraDepF, "%d:%d:", s->mb_y-1, s->mb_x);
+	      }
+	      break;
+	  case 1:
+	      if ((dc_pred_dir == 1) && (s->mb_y > 0)) {	//top
+	          fprintf(s->avctx->g_intraDepF, "%d:%d:", s->mb_y-1, s->mb_x);
+	      }
+	      break;
+	  case 2:
+	      if ((dc_pred_dir == 0) && (s->mb_x > 0)) {   //left
+	          fprintf(s->avctx->g_intraDepF, "%d:%d:", s->mb_y, s->mb_x-1);
+	      }
+              break;
+	  //case 3:                    //left: depend on block 0, top: depend on block 1
+          //    break;
       }
       if (!coded)
           goto not_coded;
@@ -1058,9 +1087,10 @@ static inline int mpeg4_decode_block_dep(MpegEncContext * s, DCTELEM * block,
     CLOSE_READER(re, &s->gb);
   }
  not_coded:
+    //feipeng: not understand completely yet
     if (intra) {
         if(!s->use_intra_dc_vlc){
-            block[0] = ff_mpeg4_pred_dc(s, n, block[0], &dc_pred_dir, 0);
+            block[0] = ff_mpeg4_pred_dc_dep(s, n, block[0], &dc_pred_dir, 0);
             i -= i>>31; //if(i == -1) i=0;
         }
         mpeg4_pred_ac(s, block, n, dc_pred_dir);
@@ -1097,7 +1127,7 @@ static inline int mpeg4_decode_block(MpegEncContext * s, DCTELEM * block,
             else    level= FASTDIV((level + (s->c_dc_scale>>1)), s->c_dc_scale);
             dc_pred_dir= (s->pred_dir_table[s->mb_x + s->mb_y*s->mb_stride]<<n)&32;
         }else{
-            level = mpeg4_decode_dc(s, n, &dc_pred_dir);
+            level = mpeg4_decode_dc(s, n, &dc_pred_dir, 0);
 	    //1: top, 0: left
 	    //feipeng: for dependency computation
 	    //printf("<<<<<%d:\n", dc_pred_dir);
@@ -1415,11 +1445,12 @@ static int mpeg4_decode_mb_dep(MpegEncContext *s,
     int16_t *mot_val;
     static int8_t quant_tab[4] = { -1, -2, 1, 2 };
     const int xy= s->mb_x + s->mb_y * s->mb_stride;
-    unsigned char l_dcp = 0;
+    int l_dcp = 0;
 
     assert(s->h263_pred);
     #undef printf
-    printf("mpeg4_decode_mb_dep\n");
+    //printf("mpeg4_decode_mb_dep\n");
+    fprintf(s->avctx->g_intraDepF, "%d:%d:%d:", s->avctx->dep_video_packet_num, s->mb_y, s->mb_x);
     if (s->pict_type == FF_P_TYPE || s->pict_type==FF_S_TYPE) {
 	/*P-VOP and S-VOP*/
         do{
@@ -1732,30 +1763,36 @@ intra:
 
         s->dsp.clear_blocks(s->block[0]);
         /* decode each block */
+	l_dcp = 0;
         for (i = 0; i < 6; i++) {
 	    //#undef printf
 	    //printf("~~~~~before mpeg4_decode_block_dep: %d, %d, %x\n", i, get_bits_count(&s->gb), show_bits(&s->gb, 24));
             if (mpeg4_decode_block_dep(s, block[i], i, cbp&32, 1, 0, &l_dcp) < 0) {
-		fprintf(s->avctx->g_dcPredF, "%d:%d:%d:%d:\n", s->avctx->dep_video_packet_num, s->mb_x, s->mb_y, l_dcp);
+		fprintf(s->avctx->g_dcPredF, "%d:%d:%d:%d:\n", s->avctx->dep_video_packet_num, s->mb_y, s->mb_x, l_dcp);
+		fprintf(s->avctx->g_intraDepF, "\n");
                 return -1;
 	    }
             cbp+=cbp;
         }
+	fprintf(s->avctx->g_intraDepF, "\n");
         goto end;
     }
 
     /* decode each block */
     //feipeng: for non-I frame
+    l_dcp = 0;
     for (i = 0; i < 6; i++) {
         if (mpeg4_decode_block_dep(s, block[i], i, cbp&32, 0, 0, &l_dcp) < 0) {
 	    printf("mpeg4_decode_block error\n");
-	    fprintf(s->avctx->g_dcPredF, "%d:%d:%d:%d:\n", s->avctx->dep_video_packet_num, s->mb_x, s->mb_y, l_dcp);
+	    fprintf(s->avctx->g_dcPredF, "%d:%d:%d:%d:\n", s->avctx->dep_video_packet_num, s->mb_y, s->mb_x, l_dcp);
+	    fprintf(s->avctx->g_intraDepF, "\n");
             return -1;
 	}
         cbp+=cbp;
     }
+    fprintf(s->avctx->g_intraDepF, "\n");
 end:
-    fprintf(s->avctx->g_dcPredF, "%d:%d:%d:%d:\n", s->avctx->dep_video_packet_num, s->mb_x, s->mb_y, l_dcp);
+    fprintf(s->avctx->g_dcPredF, "%d:%d:%d:%d:\n", s->avctx->dep_video_packet_num, s->mb_y, s->mb_x, l_dcp);
 
         /* per-MB end of slice check */
     if(s->codec_id==CODEC_ID_MPEG4){
@@ -1790,6 +1827,7 @@ static int mpeg4_decode_mb(MpegEncContext *s,
 
     assert(s->h263_pred);
     #undef printf
+    //printf("mpeg4_decode_mb");
     if (s->pict_type == FF_P_TYPE || s->pict_type==FF_S_TYPE) {
 	/*P-VOP and S-VOP*/
         do{

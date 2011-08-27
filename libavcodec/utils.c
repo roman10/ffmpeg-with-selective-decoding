@@ -761,7 +761,7 @@ int attribute_align_arg avcodec_decode_video2_dep(AVCodecContext *avctx, AVFrame
         //                                  avpkt);
         //else {
 #undef printf
-            printf("avctx->codec->decode_dep\n");
+            //printf("avctx->codec->decode_dep\n");
             ret = avctx->codec->decode_dep(avctx, picture, got_picture_ptr,
                               avpkt);
             picture->pkt_dts= avpkt->dts;
