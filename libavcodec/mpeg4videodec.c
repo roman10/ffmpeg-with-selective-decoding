@@ -1482,12 +1482,14 @@ static int mpeg4_decode_mb_dep(MpegEncContext *s,
                     s->mv[0][0][1] = 0;
                     s->mb_skipped = 1;
                 }
+		fprintf(s->avctx->g_intraDepF, "\n");
                 goto end;
             }
             cbpc = get_vlc2(&s->gb, ff_h263_inter_MCBPC_vlc.table, INTER_MCBPC_VLC_BITS, 2);
             if (cbpc < 0){
 		printf("cbpc damaged at %d %d\n", s->mb_x, s->mb_y);
                 av_log(s->avctx, AV_LOG_ERROR, "cbpc damaged at %d %d\n", s->mb_x, s->mb_y);
+		fprintf(s->avctx->g_intraDepF, "\n");
                 return -1;
             }
         }while(cbpc == 20);
@@ -1532,11 +1534,15 @@ static int mpeg4_decode_mb_dep(MpegEncContext *s,
 
                 for(i=0; i<2; i++){
                     mx = h263_decode_motion(s, pred_x, s->f_code);
-                    if (mx >= 0xffff)
+                    if (mx >= 0xffff) {
+			fprintf(s->avctx->g_intraDepF, "\n");
                         return -1;
+		    }
                     my = h263_decode_motion(s, pred_y/2, s->f_code);
-                    if (my >= 0xffff)
+                    if (my >= 0xffff) {
+			fprintf(s->avctx->g_intraDepF, "\n");
                         return -1;
+		    }
                     s->mv[0][i][0] = mx;
                     s->mv[0][i][1] = my;
                 }
@@ -1546,11 +1552,15 @@ static int mpeg4_decode_mb_dep(MpegEncContext *s,
                 s->mv_type = MV_TYPE_16X16;
                 h263_pred_motion_dep(s, 0, 0, &pred_x, &pred_y);
                 mx = h263_decode_motion(s, pred_x, s->f_code);   //get horizontal_mv_data and decode it
-                if (mx >= 0xffff)
+                if (mx >= 0xffff) {
+		    fprintf(s->avctx->g_intraDepF, "\n");
                     return -1;
+		}
                 my = h263_decode_motion(s, pred_y, s->f_code);   //get vertical_mv_data and decode it
-                if (my >= 0xffff)
+                if (my >= 0xffff) {
+		    fprintf(s->avctx->g_intraDepF, "\n");
                     return -1;
+		}
                 s->mv[0][0][0] = mx;	//0: forward; 0: only 1 MV in mb; 0: x, 1:y 
                 s->mv[0][0][1] = my;
             }
@@ -1560,12 +1570,15 @@ static int mpeg4_decode_mb_dep(MpegEncContext *s,
             for(i=0;i<4;i++) {
                 mot_val = h263_pred_motion_dep(s, i, 0, &pred_x, &pred_y);
                 mx = h263_decode_motion(s, pred_x, s->f_code);
-                if (mx >= 0xffff)
+                if (mx >= 0xffff) {
+		    fprintf(s->avctx->g_intraDepF, "\n");
                     return -1;
-
+		}
                 my = h263_decode_motion(s, pred_y, s->f_code);
-                if (my >= 0xffff)
+                if (my >= 0xffff) {
+    		    fprintf(s->avctx->g_intraDepF, "\n");
                     return -1;
+		}
                 s->mv[0][i][0] = mx;
                 s->mv[0][i][1] = my;
                 mot_val[0] = mx;
@@ -1606,6 +1619,7 @@ static int mpeg4_decode_mb_dep(MpegEncContext *s,
             s->mv[1][0][0] = 0;
             s->mv[1][0][1] = 0;
             s->current_picture.mb_type[xy]= MB_TYPE_SKIP | MB_TYPE_16x16 | MB_TYPE_L0;
+	    fprintf(s->avctx->g_intraDepF, "\n");
             goto end;
         }
 
@@ -1618,6 +1632,7 @@ static int mpeg4_decode_mb_dep(MpegEncContext *s,
             mb_type= get_vlc2(&s->gb, mb_type_b_vlc.table, MB_TYPE_B_VLC_BITS, 1);
             if(mb_type<0){
                 av_log(s->avctx, AV_LOG_ERROR, "illegal MB_type\n");
+		fprintf(s->avctx->g_intraDepF, "\n");
                 return -1;
             }
             mb_type= mb_type_b_map[ mb_type ];
@@ -1720,6 +1735,7 @@ static int mpeg4_decode_mb_dep(MpegEncContext *s,
             cbpc = get_vlc2(&s->gb, ff_h263_intra_MCBPC_vlc.table, INTRA_MCBPC_VLC_BITS, 2);
             if (cbpc < 0){
                 av_log(s->avctx, AV_LOG_ERROR, "I cbpc damaged at %d %d\n", s->mb_x, s->mb_y);
+		fprintf(s->avctx->g_intraDepF, "\n");
                 return -1;
             }
 	    //printf("cbpc: %d, bit pos: %d\n", cbpc, get_bits_count(&s->gb));
@@ -1743,6 +1759,7 @@ intra:
 	//printf("? bits, cbpy = %d, %d\n", cbpy, get_bits_count(&s->gb));
         if(cbpy<0){
             av_log(s->avctx, AV_LOG_ERROR, "I cbpy damaged at %d %d\n", s->mb_x, s->mb_y);
+	    fprintf(s->avctx->g_intraDepF, "\n");
             return -1;
         }
         cbp = (cbpc & 3) | (cbpy << 2);
@@ -1804,8 +1821,9 @@ end:
                                         (s->mb_x + delta >= s->mb_width) ? FFMIN(s->mb_y+1, s->mb_height-1) : s->mb_y, 0);
             }
 
-            if(s->pict_type==FF_B_TYPE && s->next_picture.mbskip_table[xy + delta])
+            if(s->pict_type==FF_B_TYPE && s->next_picture.mbskip_table[xy + delta]) {
                 return SLICE_OK;
+	    }
 	    #undef printf
 	    //at slice end, the bits position is the end of the bit stream, so it's end of mb, +1 to get next bit pos
 	    //printf("SLICE_END\n");

@@ -476,18 +476,18 @@ static int decode_slice_dep(MpegEncContext *s){
                         MPV_report_decode_progress(s);
                         s->mb_y++;
                     }
-		    fprintf(s->avctx->g_mbPosF, "%d:\n", get_bits_count(&s->gb));
+		    fprintf(s->avctx->g_mbPosF, "%d:\n\n", get_bits_count(&s->gb));
                     return 0;
                 }else if(ret==SLICE_NOEND){
                     av_log(s->avctx, AV_LOG_ERROR, "Slice mismatch at MB: %d\n", xy);
                     ff_er_add_slice(s, s->resync_mb_x, s->resync_mb_y, s->mb_x+1, s->mb_y, (AC_END|DC_END|MV_END)&part_mask);
-		    fprintf(s->avctx->g_mbPosF, "%d:\n", get_bits_count(&s->gb));
+		    fprintf(s->avctx->g_mbPosF, "%d:\n\n", get_bits_count(&s->gb));
                     return -1;
                 }
                 av_log(s->avctx, AV_LOG_ERROR, "Error at MB: %d\n", xy);
                 printf("Error at MB: %d\n", xy);
                 ff_er_add_slice(s, s->resync_mb_x, s->resync_mb_y, s->mb_x, s->mb_y, (AC_ERROR|DC_ERROR|MV_ERROR)&part_mask);
-		fprintf(s->avctx->g_mbPosF, "%d:\n", get_bits_count(&s->gb));
+		fprintf(s->avctx->g_mbPosF, "%d:\n\n", get_bits_count(&s->gb));
                 return -1;
             }
 	    //feipeng: it's not necessary to be selective here, as the filtering is already done in code above
@@ -504,6 +504,7 @@ static int decode_slice_dep(MpegEncContext *s){
 
         s->mb_x= 0;
     }
+    fprintf(s->avctx->g_mbPosF, "\n");
     assert(s->mb_x==0 && s->mb_y==s->mb_height);
 
     if(s->codec_id==CODEC_ID_MPEG4

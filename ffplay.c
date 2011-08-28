@@ -130,10 +130,10 @@ int main(int argc, char **argv) {
 
     init(argv[1], l_i);
 
-    for (l_i = 0; l_i < 12; ++l_i) {
+    for (l_i = 0; l_i < 500; ++l_i) {
 #if defined(SELECTIVE_DECODING) || defined(NORM_DECODE_DEBUG)
 	//dep_decode_a_video_packet();		//dump dependency
-	render_a_frame(gVideoCodecCtx->width, gVideoCodecCtx->height, 0, 0, 1, 25);	//decode frame
+	render_a_frame(gVideoCodecCtx->width, gVideoCodecCtx->height, 22, 23, 200, 300);	//decode frame
 #else
 	render_a_frame(gVideoCodecCtx->width, gVideoCodecCtx->height, 0, 0, 10, 25);	//decode frame
 #endif

@@ -348,13 +348,20 @@ int16_t *h263_pred_motion_dep(MpegEncContext * s, int block, int dir,
                 if(s->mb_x==0){
                     *px = C[0];
                     *py = C[1];
-		    fprintf(s->avctx->g_intraDepF, "%d:%d:", s->mb_y-1, s->mb_x+1);
+		    if (s->mb_y > 0) {
+		    	fprintf(s->avctx->g_intraDepF, "%d:%d:", s->mb_y-1, s->mb_x+1);
+		    }
 		    //printf("###%d:%d:%d:%d:\n", s->mb_y, s->mb_x, s->mb_y-1, s->mb_x +1);
 	            //printf("@@@%d:%d:\n%d:%d:%d:%d:\n", s->mb_y, s->mb_x, *px, *py, C[0], C[1]);
                 }else{
                     *px = mid_pred(A[0], 0, C[0]);
                     *py = mid_pred(A[1], 0, C[1]);
-		    fprintf(s->avctx->g_intraDepF, "%d:%d:%d:%d:", s->mb_y, s->mb_x-1, s->mb_y-1, s->mb_x+1);
+		    if (s->mb_x > 0) {
+			fprintf(s->avctx->g_intraDepF, "%d:%d:", s->mb_y, s->mb_x-1);
+		    }
+		    if (s->mb_y > 0) {
+		    	fprintf(s->avctx->g_intraDepF, "%d:%d:", s->mb_y-1, s->mb_x+1);
+		    }
 		    //printf("###%d:%d:%d:%d:%d:%d:\n", s->mb_y, s->mb_x, s->mb_y, s->mb_x-1, s->mb_y-1, s->mb_x+1);
                     //printf("@@@%d:%d:\n%d:%d:%d:%d:%d:%d:\n", s->mb_y, s->mb_x, *px, *py, A[0], A[1], C[0], C[1]);
                 }
@@ -365,7 +372,9 @@ int16_t *h263_pred_motion_dep(MpegEncContext * s, int block, int dir,
                 *px = A[0];
                 *py = A[1];
 		//printf("block = 0; *px = %d; *py = %d\n", *px, *py);
-		fprintf(s->avctx->g_intraDepF, "%d:%d:", s->mb_y, s->mb_x-1);
+		if (s->mb_x > 0) {
+		    fprintf(s->avctx->g_intraDepF, "%d:%d:", s->mb_y, s->mb_x-1);
+		}
 		//printf("###%d:%d:%d:%d:\n", s->mb_y, s->mb_x, s->mb_y, s->mb_x-1);
                 //printf("@@@%d:%d:\n%d:%d:%d:%d:\n", s->mb_y, s->mb_x, *px, *py, A[0], A[1]);
             }
@@ -375,7 +384,9 @@ int16_t *h263_pred_motion_dep(MpegEncContext * s, int block, int dir,
                 C = mot_val[off[block] - wrap];
                 *px = mid_pred(A[0], 0, C[0]);
                 *py = mid_pred(A[1], 0, C[1]);
-		fprintf(s->avctx->g_intraDepF, "%d:%d:", s->mb_y-1, s->mb_x+1);
+		if (s->mb_y > 0) {
+		    fprintf(s->avctx->g_intraDepF, "%d:%d:", s->mb_y-1, s->mb_x+1);
+		}
 		//printf("block = 1; s->mb_x + 1 == s->resync_mb_x && s->h263_pred; *px = %d; *py = %d\n", *px, *py);
 	        //printf("###x=%d, y=%d, %d:%d:%d:%d:\n", *px, *py, s->mb_y, s->mb_x, s->mb_y-1, s->mb_x+1);
                 //printf("@@@%d:%d:\n%d:%d:%d:%d:%d:%d:\n", s->mb_y, s->mb_x, *px, *py, A[0], A[1], C[0], C[1]);
@@ -399,7 +410,9 @@ int16_t *h263_pred_motion_dep(MpegEncContext * s, int block, int dir,
 	    if(s->mb_x == s->resync_mb_x) {
                 //printf("###%d:%d:\n", s->mb_y, s->mb_x);    
             } else {
-		fprintf(s->avctx->g_intraDepF, "%d:%d:%d:%d:", s->mb_y, s->mb_x-1);
+		if (s->mb_x > 0) {
+		    fprintf(s->avctx->g_intraDepF, "%d:%d:", s->mb_y, s->mb_x-1);
+		}
                 //printf("###%d:%d:%d:%d:\n", s->mb_y, s->mb_x, s->mb_y, s->mb_x-1);    
             }
         }
@@ -417,13 +430,23 @@ int16_t *h263_pred_motion_dep(MpegEncContext * s, int block, int dir,
         //printf("@@@%d:%d:\n%d:%d:%d:%d:%d:%d:%d:%d:\n", s->mb_y, s->mb_x, *px, *py, A[0], A[1], B[0], B[1], C[0], C[1]);
         //feipeng: added to track motion vector differential encoding dependency
 	if (block == 0) {
-	    fprintf(s->avctx->g_intraDepF, "%d:%d:%d:%d:%d:%d:", s->mb_y, s->mb_x-1, s->mb_y-1, s->mb_x, s->mb_y-1, s->mb_x+1);
+	    if (s->mb_x > 0) {
+		fprintf(s->avctx->g_intraDepF, "%d:%d:", s->mb_y, s->mb_x-1);
+	    } 
+	    if (s->mb_y > 0) {
+		fprintf(s->avctx->g_intraDepF, "%d:%d:%d:%d:", s->mb_y-1, s->mb_x, s->mb_y-1, s->mb_x+1);
+   	    }
+	    
             //printf("###%d:%d:%d:%d:%d:%d:%d:%d:\n", s->mb_y, s->mb_x, s->mb_y, s->mb_x-1, s->mb_y-1, s->mb_x, s->mb_y-1, s->mb_x+1);
         } else if (block == 1) {
-	    fprintf(s->avctx->g_intraDepF, "%d:%d:%d:%d:", s->mb_y-1, s->mb_x, s->mb_y-1, s->mb_x+1);
+	    if (s->mb_y > 0) {
+   	        fprintf(s->avctx->g_intraDepF, "%d:%d:%d:%d:", s->mb_y-1, s->mb_x, s->mb_y-1, s->mb_x+1);
+	    }
             //printf("###%d:%d:%d:%d:%d:%d:\n", s->mb_y, s->mb_x, s->mb_y-1, s->mb_x, s->mb_y-1, s->mb_x+1);
         } else if (block == 2) {
-	    fprintf(s->avctx->g_intraDepF, "%d:%d:", s->mb_y, s->mb_x - 1);
+	    if (s->mb_x > 0) {
+	        fprintf(s->avctx->g_intraDepF, "%d:%d:", s->mb_y, s->mb_x - 1);
+	    }
             //printf("###%d:%d:%d:%d:\n", s->mb_y, s->mb_x, s->mb_y, s->mb_x - 1);
         } else if (block == 3) {
             //printf("###%d:%d:\n", s->mb_y, s->mb_x);
