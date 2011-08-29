@@ -12,6 +12,12 @@ TODO: 1. need to clear the frame buffer before decoding next frame, otherwise, t
 3.3 for each mb decoded, compare the dependencies 
 **/
 
+/**
+[WARNING]: we keep two file pointers to each file, one for read and one for write. If the file content is updated by the
+write pointer, whether the file pointer for reading will be displaced???
+**/
+
+
 /*ffmpeg headers*/
 #include <libavutil/avstring.h>
 #include <libavutil/imgutils.h>
@@ -35,7 +41,12 @@ TODO: 1. need to clear the frame buffer before decoding next frame, otherwise, t
 const char program_name[] = "FFplay";
 const int program_birth_year = 2003;
 
+//pthread_t *gVideoDecodeThread;
+pthread_t gDepDumpThread;
+
 static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, float _roiEh, float _roiEw);
+void *test_thread(void *arg);
+void *decode_video(void *arg);
 
 /*for testing: we dump the decoded frame to a file*/
 static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, float _roiEh, float _roiEw) {
@@ -45,11 +56,22 @@ static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, 
     gVideoPicture.width = _width;
     ++gVideoPacketNum;
     LOGI(10, "decode video frame %d", gVideoPacketNum);
+    /*wait for the dump dependency thread to finish dumping dependency info first before start decoding a frame*/
+    if (gVideoCodecCtx->dump_dependency) {
+        while (gVideoPacketQueue.decode_gop_num >= gVideoPacketQueue.dep_gop_num) {
+            pthread_cond_wait(&gVideoPacketQueue.cond, &gVideoPacketQueue.mutex);
+	    LOGI(10, "%d:%d", gVideoPacketQueue.decode_gop_num, gVideoPacketQueue.dep_gop_num);
+	    load_gop_info(gVideoCodecCtx->g_de_gopF);
+        }
+    }
     /*see if it's a gop start, if so, load the gop info*/
+    LOGI(10, "gVideoPacketNum = %d; gNumOfGop = %d;", gVideoPacketNum, gNumOfGop);
     for (li = 0; li < gNumOfGop; ++li) {
         if (gVideoPacketNum == gGopStart[li]) {
             //start of a gop
             gStFrame = gGopStart[li];
+	    //start of a gop indicates the previous gop is done decoding
+	    gVideoPacketQueue.decode_gop_num = li;
 	    //3.0 based on roi pixel coordinates, calculate the mb-based roi coordinates
 	    l_roiSh = (_roiSh - 15) > 0 ? (_roiSh - 15):0;
 	    l_roiSw = (_roiSw - 15) > 0 ? (_roiSw - 15):0;
@@ -78,9 +100,10 @@ static void init(char *pFileName, int pDebug) {
     int l_mbH, l_mbW;
     get_video_info(pFileName, pDebug);
     gVideoPacketNum = 0;
+    gNumOfGop = 0;
 #ifdef SELECTIVE_DECODING
     if (!gVideoCodecCtx->dump_dependency) {
-	load_gop_info(gVideoCodecCtx->g_gopF);
+	load_gop_info(gVideoCodecCtx->g_de_gopF);
     }
     l_mbH = (gVideoCodecCtx->height + 15) / 16;
     l_mbW = (gVideoCodecCtx->width + 15) / 16;
@@ -100,15 +123,44 @@ static void close() {
 #endif 
 #if defined(SELECTIVE_DECODING) || defined(NORM_DECODE_DEBUG)
     /*close all dependency files*/
-    fclose(gVideoCodecCtx->g_mbPosF);
-    fclose(gVideoCodecCtx->g_intraDepF);
-    fclose(gVideoCodecCtx->g_interDepF);
-    fclose(gVideoCodecCtx->g_dcPredF);
     if (gVideoCodecCtx->dump_dependency) {
+        fclose(gVideoCodecCtx->g_mbPosF);
+        fclose(gVideoCodecCtx->g_intraDepF);
+        fclose(gVideoCodecCtx->g_interDepF);
+        fclose(gVideoCodecCtx->g_dcPredF);
         fclose(gVideoCodecCtx->g_gopF);
     }
+    fclose(gVideoCodecCtx->g_de_mbPosF);
+    fclose(gVideoCodecCtx->g_de_intraDepF);
+    fclose(gVideoCodecCtx->g_de_interDepF);
+    fclose(gVideoCodecCtx->g_de_dcPredF);
+    fclose(gVideoCodecCtx->g_de_gopF);
 #endif
     LOGI(10, "clean up done");
+}
+
+static void *dump_dependency_function(void *arg) {
+    int l_i;
+    for (l_i = 0; l_i < 500; ++l_i) {
+	LOGI(10, "dump dependency for video packet %d", l_i);
+	dep_decode_a_video_packet();
+    }
+}
+
+/*void *test_thread(void *arg) {
+    LOGI(10, "test_thread");
+    return NULL;
+}*/
+
+void *decode_video(void *arg) {
+    int l_i;
+    for (l_i = 0; l_i < 500; ++l_i) {
+#if defined(SELECTIVE_DECODING) || defined(NORM_DECODE_DEBUG)
+	render_a_frame(gVideoCodecCtx->width, gVideoCodecCtx->height, 22, 23, 200, 300);	//decode frame
+#else
+	render_a_frame(gVideoCodecCtx->width, gVideoCodecCtx->height, 0, 0, 10, 25);	//decode frame
+#endif
+    }
 }
 
 int main(int argc, char **argv) {
@@ -130,14 +182,18 @@ int main(int argc, char **argv) {
 
     init(argv[1], l_i);
 
-    for (l_i = 0; l_i < 500; ++l_i) {
-#if defined(SELECTIVE_DECODING) || defined(NORM_DECODE_DEBUG)
-	//dep_decode_a_video_packet();		//dump dependency
-	render_a_frame(gVideoCodecCtx->width, gVideoCodecCtx->height, 22, 23, 200, 300);	//decode frame
-#else
-	render_a_frame(gVideoCodecCtx->width, gVideoCodecCtx->height, 0, 0, 10, 25);	//decode frame
-#endif
+    if (gVideoCodecCtx->dump_dependency) {
+	/*if we need to dump dependency, start a background thread for it*/
+        if (pthread_create(&gDepDumpThread, NULL, dump_dependency_function, NULL)) {
+	    LOGE(1, "Error: failed to create a native thread for dumping dependency");
+        }
+        LOGI(10, "tttttt: dependency dumping thread started! tttttt");
     }
+    /*if (pthread_create(gVideoDecodeThread, NULL, decode_video, NULL)) {
+	LOGE(1, "Error: failed to createa native thread for decoding video");
+    }*/
+
+    *decode_video(NULL);
    
     close();
     return 0;

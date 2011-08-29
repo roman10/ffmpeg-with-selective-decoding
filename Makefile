@@ -11,7 +11,7 @@ PROGS-$(CONFIG_FFSERVER) += ffserver
 
 PROGS      := $(PROGS-yes:%=%$(EXESUF))
 PROGS_G     = $(PROGS-yes:%=%_g$(EXESUF))
-OBJS        = $(PROGS-yes:%=%.o) cmdutils.o, queue.o, dependency.o, utility.o
+OBJS        = $(PROGS-yes:%=%.o) cmdutils.o, queue.o, dependency.o, utility.o, packetqueue.o
 MANPAGES    = $(PROGS-yes:%=doc/%.1)
 PODPAGES    = $(PROGS-yes:%=doc/%.pod)
 HTMLPAGES   = $(PROGS-yes:%=doc/%.html)
@@ -83,8 +83,8 @@ $(foreach D,$(FFLIBS),$(eval $(call DOSUBDIR,lib$(D))))
 ffplay_g$(EXESUF): FF_EXTRALIBS += $(SDL_LIBS)
 ffserver_g$(EXESUF): FF_LDFLAGS += $(FFSERVERLDFLAGS)
 
-%_g$(EXESUF): %.o cmdutils.o queue.o dependency.o utility.o $(FF_DEP_LIBS)
-	$(LD) $(FF_LDFLAGS) -o $@ $< cmdutils.o queue.o dependency.o utility.o $(FF_EXTRALIBS)
+%_g$(EXESUF): %.o cmdutils.o queue.o dependency.o utility.o packetqueue.o $(FF_DEP_LIBS)
+	$(LD) $(FF_LDFLAGS) -o $@ $< cmdutils.o queue.o dependency.o utility.o packetqueue.o $(FF_EXTRALIBS)
 
 tools/%$(EXESUF): tools/%.o
 	$(LD) $(FF_LDFLAGS) -o $@ $< $(FF_EXTRALIBS)
