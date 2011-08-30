@@ -1064,7 +1064,7 @@ int ff_h263_decode_frame_dep(AVCodecContext *avctx,
     AVFrame *pict = data;
 
     #undef printf
-    printf("ff_h263_decode_frame_dep: %d: s->height: %d; s->width: %d\n", avctx->dep_video_packet_num, s->height, s->width);
+    //printf("ff_h263_decode_frame_dep: %d: s->height: %d; s->width: %d\n", avctx->dep_video_packet_num, s->height, s->width);
 #ifdef PRINT_FRAME_TIME
 uint64_t time= rdtsc();
 #endif

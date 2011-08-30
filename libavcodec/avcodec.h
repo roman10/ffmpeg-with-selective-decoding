@@ -2929,12 +2929,12 @@ typedef struct AVCodecContext {
     FILE *g_interDepF;
     FILE *g_dcPredF;
     FILE *g_gopF;
-    /*file pointers for reading dependency relationship*/
-    FILE *g_de_mbPosF;
+    ///*file pointers for reading dependency relationship*/
+    /*FILE *g_de_mbPosF;
     FILE *g_de_intraDepF;
     FILE *g_de_interDepF;
     FILE *g_de_dcPredF;
-    FILE *g_de_gopF;
+    FILE *g_de_gopF;*/
     unsigned int dep_video_packet_num;
     /*Feipeng: added for debugging*/
     int debug_selective;

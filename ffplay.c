@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 /**
 TODO: 1. need to clear the frame buffer before decoding next frame, otherwise, the previous block might affect current block
@@ -15,6 +16,13 @@ TODO: 1. need to clear the frame buffer before decoding next frame, otherwise, t
 /**
 [WARNING]: we keep two file pointers to each file, one for read and one for write. If the file content is updated by the
 write pointer, whether the file pointer for reading will be displaced???
+**/
+
+
+/**
+[TODO]: currently the dependency relationship are dumped to files first, then the decoding thread read from the file.
+it's better we put the relationship into some data structure and let the decoding thread to read it directly from memory.
+This doesn't apply to dcp as it's part of the avcodecContext
 **/
 
 
@@ -41,7 +49,7 @@ write pointer, whether the file pointer for reading will be displaced???
 const char program_name[] = "FFplay";
 const int program_birth_year = 2003;
 
-//pthread_t *gVideoDecodeThread;
+pthread_t *gVideoDecodeThread;
 pthread_t gDepDumpThread;
 
 static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, float _roiEh, float _roiEw);
@@ -59,10 +67,16 @@ static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, 
     /*wait for the dump dependency thread to finish dumping dependency info first before start decoding a frame*/
     if (gVideoCodecCtx->dump_dependency) {
         while (gVideoPacketQueue.decode_gop_num >= gVideoPacketQueue.dep_gop_num) {
-            pthread_cond_wait(&gVideoPacketQueue.cond, &gVideoPacketQueue.mutex);
-	    LOGI(10, "%d:%d", gVideoPacketQueue.decode_gop_num, gVideoPacketQueue.dep_gop_num);
-	    load_gop_info(gVideoCodecCtx->g_de_gopF);
+	    /*[TODO]it might be more appropriate to use some sort of signal*/
+	    //pthread_mutex_lock(&gVideoPacketQueue.mutex);
+            //pthread_cond_wait(&gVideoPacketQueue.cond, &gVideoPacketQueue.mutex);
+	    //pthread_mutex_unlock(&gVideoPacketQueue.mutex);
+	    usleep(50);    
         }
+	LOGI(10, "%d:%d:%d", gNumOfGop, gVideoPacketQueue.decode_gop_num, gVideoPacketQueue.dep_gop_num);    
+	if (gNumOfGop < gVideoPacketQueue.dep_gop_num) {
+	    load_gop_info(gVideoCodecCtx->g_gopF);
+	}
     }
     /*see if it's a gop start, if so, load the gop info*/
     LOGI(10, "gVideoPacketNum = %d; gNumOfGop = %d;", gVideoPacketNum, gNumOfGop);
@@ -96,14 +110,14 @@ static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, 
     avpicture_free(&gVideoPicture.data);
 }
 
-static void init(char *pFileName, int pDebug) {
+static void andzop_init(char *pFileName, int pDebug) {
     int l_mbH, l_mbW;
     get_video_info(pFileName, pDebug);
     gVideoPacketNum = 0;
     gNumOfGop = 0;
 #ifdef SELECTIVE_DECODING
     if (!gVideoCodecCtx->dump_dependency) {
-	load_gop_info(gVideoCodecCtx->g_de_gopF);
+	load_gop_info(gVideoCodecCtx->g_gopF);
     }
     l_mbH = (gVideoCodecCtx->height + 15) / 16;
     l_mbW = (gVideoCodecCtx->width + 15) / 16;
@@ -112,7 +126,7 @@ static void init(char *pFileName, int pDebug) {
     LOGI(10, "initialization done");
 }
 
-static void close() {
+static void andzop_finish() {
     int l_mbH = (gVideoCodecCtx->height + 15) / 16;
     /*close the video codec*/
     avcodec_close(gVideoCodecCtx);
@@ -123,18 +137,11 @@ static void close() {
 #endif 
 #if defined(SELECTIVE_DECODING) || defined(NORM_DECODE_DEBUG)
     /*close all dependency files*/
-    if (gVideoCodecCtx->dump_dependency) {
-        fclose(gVideoCodecCtx->g_mbPosF);
-        fclose(gVideoCodecCtx->g_intraDepF);
-        fclose(gVideoCodecCtx->g_interDepF);
-        fclose(gVideoCodecCtx->g_dcPredF);
-        fclose(gVideoCodecCtx->g_gopF);
-    }
-    fclose(gVideoCodecCtx->g_de_mbPosF);
-    fclose(gVideoCodecCtx->g_de_intraDepF);
-    fclose(gVideoCodecCtx->g_de_interDepF);
-    fclose(gVideoCodecCtx->g_de_dcPredF);
-    fclose(gVideoCodecCtx->g_de_gopF);
+    fclose(gVideoCodecCtx->g_mbPosF);
+    fclose(gVideoCodecCtx->g_intraDepF);
+    fclose(gVideoCodecCtx->g_interDepF);
+    fclose(gVideoCodecCtx->g_dcPredF);
+    fclose(gVideoCodecCtx->g_gopF);
 #endif
     LOGI(10, "clean up done");
 }
@@ -142,9 +149,16 @@ static void close() {
 static void *dump_dependency_function(void *arg) {
     int l_i;
     for (l_i = 0; l_i < 500; ++l_i) {
-	LOGI(10, "dump dependency for video packet %d", l_i);
+	LOGI(20, "dump dependency for video packet %d", l_i);
 	dep_decode_a_video_packet();
     }
+    fclose(gVideoCodecCtxDep->g_mbPosF);
+    fclose(gVideoCodecCtxDep->g_intraDepF);
+    fclose(gVideoCodecCtxDep->g_interDepF);
+    fclose(gVideoCodecCtxDep->g_dcPredF);
+    fclose(gVideoCodecCtxDep->g_gopF);
+    avcodec_close(gVideoCodecCtxDep);	
+    av_close_input_file(gFormatCtxDep);
 }
 
 /*void *test_thread(void *arg) {
@@ -180,7 +194,7 @@ int main(int argc, char **argv) {
 	l_i = atoi(argv[2]);
     }
 
-    init(argv[1], l_i);
+    andzop_init(argv[1], l_i);
 
     if (gVideoCodecCtx->dump_dependency) {
 	/*if we need to dump dependency, start a background thread for it*/
@@ -189,13 +203,14 @@ int main(int argc, char **argv) {
         }
         LOGI(10, "tttttt: dependency dumping thread started! tttttt");
     }
-    /*if (pthread_create(gVideoDecodeThread, NULL, decode_video, NULL)) {
+    if (pthread_create(&gVideoDecodeThread, NULL, decode_video, NULL)) {
 	LOGE(1, "Error: failed to createa native thread for decoding video");
-    }*/
+    }
 
-    *decode_video(NULL);
-   
-    close();
+    pthread_join(gDepDumpThread, NULL);
+    pthread_join(gVideoDecodeThread, NULL);
+
+    andzop_finish();
     return 0;
 }
 
@@ -221,6 +236,11 @@ fix: added code blocks to update the skip_table for those mbs that are not selec
 4. dct not match
 reason: the logdcpre.py has problem retrieving the correct dcp.txt
 fix: fixed the py file
+
+5. multi-thread doesn't work
+reason: the codec context should be separated from dependency dump and decoding as the codec context maintains the 
+	history info needed to decode the video frames
+fix: create another set of global variables for dependency dumping
 */
 
 
