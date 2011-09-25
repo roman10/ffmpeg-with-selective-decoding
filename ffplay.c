@@ -211,7 +211,7 @@ int main(int argc, char **argv) {
 
     andzop_init(argc-2, &argv[2], l_i);
 	
-    gDepDumpThreadList = (pthread_t*)malloc((argc-2)*sizeof(pthread_t*));
+    gDepDumpThreadList = (pthread_t*)malloc((argc-2)*sizeof(pthread_t));
 	gDumpThreadParams = (DUMP_DEP_PARAMS *)malloc(sizeof(DUMP_DEP_PARAMS)*(argc-2));
     for (l_i = 0; l_i < gNumOfVideoFiles; ++l_i) {
         if (gVideoCodecCtxList[l_i]->dump_dependency) {
