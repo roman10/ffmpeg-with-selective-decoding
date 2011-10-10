@@ -62,26 +62,25 @@ void *test_thread(void *arg);
 void *decode_video(void *arg);
 
 /*for testing: we dump the decoded frame to a file: here (_roiSh, _roiSw) and (_roiEh, _roiEw) are in pixel*/
-static void render_a_frame(int p_zoomLevelUpdate, int p_videoFileIndex, int _width, int _height, float _roiSh, float _roiSw, float _roiEh, float _roiEw) {
+static void render_a_frame(int p_zoomLevelUpdate, int _width, int _height, float _roiSh, float _roiSw, float _roiEh, float _roiEw) {
     int li;
     int l_roiSh, l_roiSw, l_roiEh, l_roiEw;
     gVideoPicture.height = _height;
     gVideoPicture.width = _width;
-    ++gVideoPacketNum;
-    LOGI(10, "decode video %d frame %d", p_videoFileIndex, gVideoPacketNum);
+    ++gVideoPacketNum;  
     /*wait for the dump dependency thread to finish dumping dependency info first before start decoding a frame*/
-    if (gVideoCodecCtxList[p_videoFileIndex]->dump_dependency) {
-        while (gVideoPacketQueueList[p_videoFileIndex].decode_gop_num >= gVideoPacketQueueList[p_videoFileIndex].dep_gop_num) {
+    if (gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->dump_dependency) {
+        while (gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].decode_gop_num >= gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].dep_gop_num) {
 	    /*[TODO]it might be more appropriate to use some sort of signal*/
 	    //pthread_mutex_lock(&gVideoPacketQueue.mutex);
             //pthread_cond_wait(&gVideoPacketQueue.cond, &gVideoPacketQueue.mutex);
 	    //pthread_mutex_unlock(&gVideoPacketQueue.mutex);
 	    usleep(50);    
         }
-	LOGI(10, "%d:%d:%d", gNumOfGop, gVideoPacketQueueList[p_videoFileIndex].decode_gop_num, gVideoPacketQueueList[p_videoFileIndex].dep_gop_num);    
+	LOGI(10, "%d:%d:%d", gNumOfGop, gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].decode_gop_num, gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].dep_gop_num);    
 		//update the gop start and end to memory data structure
-	if (gNumOfGop < gVideoPacketQueueList[p_videoFileIndex].dep_gop_num) {
-	    load_gop_info(p_videoFileIndex, gVideoCodecCtxList[p_videoFileIndex]->g_gopF);
+	if (gNumOfGop < gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].dep_gop_num) {
+	    load_gop_info(gCurrentDecodingVideoFileIndex, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF);
 	}
     }
     /*see if it's a gop start, if so, load the gop info*/
@@ -101,25 +100,26 @@ static void render_a_frame(int p_zoomLevelUpdate, int p_videoFileIndex, int _wid
             //start of a gop
             gStFrame = gGopStart[li];
 	    //start of a gop indicates the previous gop is done decoding
-	    gVideoPacketQueueList[p_videoFileIndex].decode_gop_num = li;
+	    gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].decode_gop_num = li;
 	    //3.0 based on roi pixel coordinates, calculate the mb-based roi coordinates
 	    l_roiSh = (_roiSh - 15) > 0 ? (_roiSh - 15):0;
 	    l_roiSw = (_roiSw - 15) > 0 ? (_roiSw - 15):0;
-	    l_roiEh = (_roiEh + 15) < gVideoCodecCtxList[p_videoFileIndex]->height ? (_roiEh + 15):gVideoCodecCtxList[p_videoFileIndex]->height;
-	    l_roiEw = (_roiEw + 15) < gVideoCodecCtxList[p_videoFileIndex]->width ? (_roiEw + 15):gVideoCodecCtxList[p_videoFileIndex]->width;
-	    l_roiSh = l_roiSh * (gVideoCodecCtxList[p_videoFileIndex]->height/16) / gVideoCodecCtxList[p_videoFileIndex]->height;
-	    l_roiSw = l_roiSw * (gVideoCodecCtxList[p_videoFileIndex]->width/16) / gVideoCodecCtxList[p_videoFileIndex]->width;
- 	    l_roiEh = l_roiEh * (gVideoCodecCtxList[p_videoFileIndex]->height/16) / gVideoCodecCtxList[p_videoFileIndex]->height;
-	    l_roiEw = l_roiEw * (gVideoCodecCtxList[p_videoFileIndex]->width/16) / gVideoCodecCtxList[p_videoFileIndex]->width;
+	    l_roiEh = (_roiEh + 15) < gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height ? (_roiEh + 15):gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height;
+	    l_roiEw = (_roiEw + 15) < gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width ? (_roiEw + 15):gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width;
+	    l_roiSh = l_roiSh * (gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height/16) / gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height;
+	    l_roiSw = l_roiSw * (gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width/16) / gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width;
+ 	    l_roiEh = l_roiEh * (gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height/16) / gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height;
+	    l_roiEw = l_roiEw * (gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width/16) / gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width;
 	    //3.1 check if it's a beginning of a gop, if so, load the pre computation result and compute the inter frame dependency
 	    LOGI(10, "decode roi (%d:%d) to (%d:%d)", l_roiSh, l_roiSw, l_roiEh, l_roiEw);
-            prepare_decode_of_gop(p_videoFileIndex, gGopStart[li], gGopEnd[li], l_roiSh, l_roiSw, l_roiEh, l_roiEw);
+            prepare_decode_of_gop(gCurrentDecodingVideoFileIndex, gGopStart[li], gGopEnd[li], l_roiSh, l_roiSw, l_roiEh, l_roiEw);
             break;
         } else if (gVideoPacketNum < gGopEnd[li]) {
             break;
         }
     }
-    decode_a_video_packet(p_videoFileIndex, gRoiSh, gRoiSw, gRoiEh, gRoiEw);
+	LOGI(10, "decode video %d frame %d", gCurrentDecodingVideoFileIndex, gVideoPacketNum);
+    decode_a_video_packet(gCurrentDecodingVideoFileIndex, gRoiSh, gRoiSw, gRoiEh, gRoiEw);
     if (gVideoPicture.data.linesize[0] != 0) {
         dump_frame_to_file(gVideoPacketNum);
     }
@@ -214,9 +214,9 @@ void *decode_video(void *arg) {
 		} 
 		
 #if defined(SELECTIVE_DECODING) || defined(NORM_DECODE_DEBUG)
-		render_a_frame(gZoomLevelUpdate, gCurrentDecodingVideoFileIndex, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height, 22, 23, 100, 180);	//decode frame
+		render_a_frame(gZoomLevelUpdate, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height, 22, 23, 100, 180);	//decode frame
 #else
-		render_a_frame(gZoomLevelUpdate, gCurrentDecodingVideoFileIndex, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height, 0, 0, 10, 25);	//decode frame
+		render_a_frame(gZoomLevelUpdate, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height, 0, 0, 10, 25);	//decode frame
 #endif
     }
 }
