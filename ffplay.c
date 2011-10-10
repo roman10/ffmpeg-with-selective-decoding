@@ -56,11 +56,13 @@ typedef struct {
 } DUMP_DEP_PARAMS;
 DUMP_DEP_PARAMS *gDumpThreadParams;
 
+int gZoomLevelUpdate;
+
 void *test_thread(void *arg);
 void *decode_video(void *arg);
 
 /*for testing: we dump the decoded frame to a file: here (_roiSh, _roiSw) and (_roiEh, _roiEw) are in pixel*/
-static void render_a_frame(int p_videoFileIndex, int _width, int _height, float _roiSh, float _roiSw, float _roiEh, float _roiEw) {
+static void render_a_frame(int p_zoomLevelUpdate, int p_videoFileIndex, int _width, int _height, float _roiSh, float _roiSw, float _roiEh, float _roiEw) {
     int li;
     int l_roiSh, l_roiSw, l_roiEh, l_roiEw;
     gVideoPicture.height = _height;
@@ -77,6 +79,7 @@ static void render_a_frame(int p_videoFileIndex, int _width, int _height, float 
 	    usleep(50);    
         }
 	LOGI(10, "%d:%d:%d", gNumOfGop, gVideoPacketQueueList[p_videoFileIndex].decode_gop_num, gVideoPacketQueueList[p_videoFileIndex].dep_gop_num);    
+		//update the gop start and end to memory data structure
 	if (gNumOfGop < gVideoPacketQueueList[p_videoFileIndex].dep_gop_num) {
 	    load_gop_info(p_videoFileIndex, gVideoCodecCtxList[p_videoFileIndex]->g_gopF);
 	}
@@ -85,6 +88,16 @@ static void render_a_frame(int p_videoFileIndex, int _width, int _height, float 
     LOGI(10, "gVideoPacketNum = %d; gNumOfGop = %d;", gVideoPacketNum, gNumOfGop);
     for (li = 0; li < gNumOfGop; ++li) {
         if (gVideoPacketNum == gGopStart[li]) {
+			//only update the zoom level at the beginning of GOP
+			if (p_zoomLevelUpdate != 0) {
+				gCurrentDecodingVideoFileIndex += p_zoomLevelUpdate;
+				if (gCurrentDecodingVideoFileIndex > gNumOfVideoFiles) {
+					gCurrentDecodingVideoFileIndex = gNumOfVideoFiles;
+				} else if (gCurrentDecodingVideoFileIndex < 0) {
+					gCurrentDecodingVideoFileIndex = 0;
+				}
+				gZoomLevelUpdate = 0;
+			}
             //start of a gop
             gStFrame = gGopStart[li];
 	    //start of a gop indicates the previous gop is done decoding
@@ -161,14 +174,18 @@ static void andzop_finish(int pNumOfFile) {
     LOGI(10, "clean up done");
 }
 
+static void update_display_video(int p_videoFileIndex) {
+	gCurrentDecodingVideoFileIndex = p_videoFileIndex;
+}
+
 static void *dump_dependency_function(void *arg) {
     int l_i;
     DUMP_DEP_PARAMS *l_params = (DUMP_DEP_PARAMS*)arg;
 	LOGI(10, "dump dependency for file: %d", l_params->videoFileIndex);
-    for (l_i = 0; l_i < 500; ++l_i) {
+    for (l_i = 0; l_i < 100; ++l_i) {
 		LOGI(10, "dump dependency for video packet %d", l_i);
 		dep_decode_a_video_packet(l_params->videoFileIndex);
-    }
+    };
     fclose(gVideoCodecCtxDepList[l_params->videoFileIndex]->g_mbPosF);
     fclose(gVideoCodecCtxDepList[l_params->videoFileIndex]->g_intraDepF);
     fclose(gVideoCodecCtxDepList[l_params->videoFileIndex]->g_interDepF);
@@ -185,11 +202,21 @@ static void *dump_dependency_function(void *arg) {
 
 void *decode_video(void *arg) {
     int l_i;
-    for (l_i = 0; l_i < 500; ++l_i) {
+    for (l_i = 0; l_i < 15; ++l_i) {
+		if (l_i == 10) {
+			gZoomLevelUpdate = 1;
+		} 
+		if (l_i == 50) {
+			gZoomLevelUpdate = -1;
+		}
+		if (l_i == 80) {
+			gZoomLevelUpdate = 2;
+		} 
+		
 #if defined(SELECTIVE_DECODING) || defined(NORM_DECODE_DEBUG)
-		render_a_frame(gCurrentDecodingVideoFileIndex, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height, 22, 23, 200, 300);	//decode frame
+		render_a_frame(gZoomLevelUpdate, gCurrentDecodingVideoFileIndex, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height, 22, 23, 100, 180);	//decode frame
 #else
-		render_a_frame(gCurrentDecodingVideoFileIndex, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height, 0, 0, 10, 25);	//decode frame
+		render_a_frame(gZoomLevelUpdate, gCurrentDecodingVideoFileIndex, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height, 0, 0, 10, 25);	//decode frame
 #endif
     }
 }
