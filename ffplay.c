@@ -202,7 +202,7 @@ static void *dump_dependency_function(void *arg) {
 
 void *decode_video(void *arg) {
     int l_i;
-    for (l_i = 0; l_i < 15; ++l_i) {
+    for (l_i = 0; l_i < 100; ++l_i) {
 		if (l_i == 10) {
 			gZoomLevelUpdate = 1;
 		} 
@@ -214,9 +214,9 @@ void *decode_video(void *arg) {
 		} 
 		
 #if defined(SELECTIVE_DECODING) || defined(NORM_DECODE_DEBUG)
-		render_a_frame(gZoomLevelUpdate, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height, 22, 23, 100, 180);	//decode frame
+		render_a_frame(gZoomLevelUpdate, 800, 480, 22, 23, 100, 180);	//decode frame
 #else
-		render_a_frame(gZoomLevelUpdate, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height, 0, 0, 10, 25);	//decode frame
+		render_a_frame(gZoomLevelUpdate, 800, 480, 0, 0, 10, 25);	//decode frame
 #endif
     }
 }
