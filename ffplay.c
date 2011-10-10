@@ -163,8 +163,8 @@ static void andzop_finish(int pNumOfFile) {
 		fclose(gVideoCodecCtxList[l_i]->g_interDepF);
 		fclose(gVideoCodecCtxList[l_i]->g_dcPredF);
 		fclose(gVideoCodecCtxList[l_i]->g_gopF);
-	}
 #endif
+	}
 	free(gFormatCtxList);
 	free(gFormatCtxDepList);
 	free(gVideoStreamIndexList);
@@ -172,10 +172,6 @@ static void andzop_finish(int pNumOfFile) {
 	free(gVideoCodecCtxList);
 	free(gVideoPacketQueueList);
     LOGI(10, "clean up done");
-}
-
-static void update_display_video(int p_videoFileIndex) {
-	gCurrentDecodingVideoFileIndex = p_videoFileIndex;
 }
 
 static void *dump_dependency_function(void *arg) {
@@ -202,7 +198,7 @@ static void *dump_dependency_function(void *arg) {
 
 void *decode_video(void *arg) {
     int l_i;
-    for (l_i = 0; l_i < 100; ++l_i) {
+    for (l_i = 0; l_i < 20; ++l_i) {
 		if (l_i == 10) {
 			gZoomLevelUpdate = 1;
 		} 
