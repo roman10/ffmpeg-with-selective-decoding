@@ -90,8 +90,8 @@ static void render_a_frame(int p_zoomLevelUpdate, int _width, int _height, float
 			//only update the zoom level at the beginning of GOP
 			if (p_zoomLevelUpdate != 0) {
 				gCurrentDecodingVideoFileIndex += p_zoomLevelUpdate;
-				if (gCurrentDecodingVideoFileIndex > gNumOfVideoFiles) {
-					gCurrentDecodingVideoFileIndex = gNumOfVideoFiles;
+				if (gCurrentDecodingVideoFileIndex >= gNumOfVideoFiles) {
+					gCurrentDecodingVideoFileIndex = gNumOfVideoFiles - 1;
 				} else if (gCurrentDecodingVideoFileIndex < 0) {
 					gCurrentDecodingVideoFileIndex = 0;
 				}
