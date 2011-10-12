@@ -132,9 +132,11 @@ static void andzop_init(int pNumOfFile, char **pFileNameList, int pDebug) {
     gVideoPacketNum = 0;
     gNumOfGop = 0;
 #ifdef SELECTIVE_DECODING
-    if (!gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->dump_dependency) {
-		load_gop_info(gCurrentDecodingVideoFileIndex, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF);
-    }
+	for (l_i = 0; l_i < pNumOfFile; ++l_i) {
+	    if (!gVideoCodecCtxList[l_i]->dump_dependency) {
+			load_gop_info(l_i, gVideoCodecCtxList[l_i]->g_gopF);
+	    }
+	}
 	for (l_i = 0; l_i < pNumOfFile; ++l_i) {
 		l_mbH = (gVideoCodecCtxList[l_i]->height + 15) / 16;
 		l_mbW = (gVideoCodecCtxList[l_i]->width + 15) / 16;
@@ -198,7 +200,7 @@ static void *dump_dependency_function(void *arg) {
 
 void *decode_video(void *arg) {
     int l_i;
-    for (l_i = 0; l_i < 20; ++l_i) {
+    for (l_i = 0; l_i < 100; ++l_i) {
 		if (l_i == 10) {
 			gZoomLevelUpdate = 1;
 		} 
@@ -238,21 +240,23 @@ int main(int argc, char **argv) {
 	gDumpThreadParams = (DUMP_DEP_PARAMS *)malloc(sizeof(DUMP_DEP_PARAMS)*(argc-2));
     for (l_i = 0; l_i < gNumOfVideoFiles; ++l_i) {
         if (gVideoCodecCtxList[l_i]->dump_dependency) {
-	    /*if we need to dump dependency, start a background thread for it*/
-		gDumpThreadParams[l_i].videoFileIndex = l_i;
-	    if (pthread_create(&gDepDumpThreadList[l_i], NULL, dump_dependency_function, (void *)&gDumpThreadParams[l_i])) {
-	        LOGE(1, "Error: failed to create a native thread for dumping dependency");
-	    }
-	    LOGI(10, "tttttt: dependency dumping thread started! tttttt");
+			/*if we need to dump dependency, start a background thread for it*/
+			gDumpThreadParams[l_i].videoFileIndex = l_i;
+			if (pthread_create(&gDepDumpThreadList[l_i], NULL, dump_dependency_function, (void *)&gDumpThreadParams[l_i])) {
+			    LOGE(1, "Error: failed to create a native thread for dumping dependency");
+			}
+			LOGI(10, "tttttt: dependency dumping thread started! tttttt");
         }
     }
     if (pthread_create(&gVideoDecodeThread, NULL, decode_video, NULL)) {
 		LOGE(1, "Error: failed to createa native thread for decoding video");
     }
 
-	for (l_i = 0; l_i < argc-2; ++l_i) {
-		LOGI(10, "join a dep dump thread");
-    	pthread_join(gDepDumpThreadList[l_i], NULL);
+	for (l_i = 0; l_i < gNumOfVideoFiles; ++l_i) {
+		if (gVideoCodecCtxList[l_i]->dump_dependency) {
+			LOGI(10, "join a dep dump thread");
+	    	pthread_join(gDepDumpThreadList[l_i], NULL);
+		}
 	}
     pthread_join(gVideoDecodeThread, NULL);
 
