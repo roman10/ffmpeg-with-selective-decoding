@@ -111,7 +111,7 @@ static void render_a_frame(int p_zoomLevelUpdate, int _width, int _height, float
  	    l_roiEh = l_roiEh * (gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height/16) / gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height;
 	    l_roiEw = l_roiEw * (gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width/16) / gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width;
 	    //3.1 check if it's a beginning of a gop, if so, load the pre computation result and compute the inter frame dependency
-	    LOGI(10, "decode roi (%d:%d) to (%d:%d)", l_roiSh, l_roiSw, l_roiEh, l_roiEw);
+	    LOGI(10, "decode video %d with roi (%d:%d) to (%d:%d)", gCurrentDecodingVideoFileIndex, l_roiSh, l_roiSw, l_roiEh, l_roiEw);
             prepare_decode_of_gop(gCurrentDecodingVideoFileIndex, gGopStart[li], gGopEnd[li], l_roiSh, l_roiSw, l_roiEh, l_roiEw);
             break;
         } else if (gVideoPacketNum < gGopEnd[li]) {
@@ -181,7 +181,7 @@ static void *dump_dependency_function(void *arg) {
     DUMP_DEP_PARAMS *l_params = (DUMP_DEP_PARAMS*)arg;
 	LOGI(10, "dump dependency for file: %d", l_params->videoFileIndex);
     for (l_i = 0; l_i < 100; ++l_i) {
-		LOGI(10, "dump dependency for video packet %d", l_i);
+		LOGI(10, "dump dependency for video %d packet %d", l_params->videoFileIndex, l_i);
 		dep_decode_a_video_packet(l_params->videoFileIndex);
     };
     fclose(gVideoCodecCtxDepList[l_params->videoFileIndex]->g_mbPosF);
