@@ -208,7 +208,7 @@ void *decode_video(void *arg) {
 			gZoomLevelUpdate = -1;
 		}
 		if (l_i == 80) {
-			gZoomLevelUpdate = 2;
+			gZoomLevelUpdate = 3;
 		} 
 		
 #if defined(SELECTIVE_DECODING) || defined(NORM_DECODE_DEBUG)
