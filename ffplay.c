@@ -45,6 +45,8 @@ This doesn't apply to dcp as it's part of the avcodecContext
 
 #include "dependency.h"
 
+#define NUM_OF_FRAMES_IN_BATCH 800		
+
 /*these two lines are necessary for compilation*/
 const char program_name[] = "FFplay";
 const int program_birth_year = 2003;
@@ -65,23 +67,24 @@ void *decode_video(void *arg);
 static void render_a_frame(int p_zoomLevelUpdate, int _width, int _height, float _roiSh, float _roiSw, float _roiEh, float _roiEw) {
     int li;
     int l_roiSh, l_roiSw, l_roiEh, l_roiEw;
+	LOGI(10, "render_a_frame");
     gVideoPicture.height = _height;
     gVideoPicture.width = _width;
     ++gVideoPacketNum;  
     /*wait for the dump dependency thread to finish dumping dependency info first before start decoding a frame*/
     if (gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->dump_dependency) {
         while (gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].decode_gop_num >= gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].dep_gop_num) {
-	    /*[TODO]it might be more appropriate to use some sort of signal*/
-	    //pthread_mutex_lock(&gVideoPacketQueue.mutex);
-            //pthread_cond_wait(&gVideoPacketQueue.cond, &gVideoPacketQueue.mutex);
-	    //pthread_mutex_unlock(&gVideoPacketQueue.mutex);
-	    usleep(50);    
+			/*[TODO]it might be more appropriate to use some sort of signal*/
+			//pthread_mutex_lock(&gVideoPacketQueue.mutex);
+		        //pthread_cond_wait(&gVideoPacketQueue.cond, &gVideoPacketQueue.mutex);
+			//pthread_mutex_unlock(&gVideoPacketQueue.mutex);
+			usleep(50);    
         }
-	LOGI(10, "%d:%d:%d", gNumOfGop, gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].decode_gop_num, gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].dep_gop_num);    
+		LOGI(10, "%d:%d:%d", gNumOfGop, gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].decode_gop_num, gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].dep_gop_num);    
 		//update the gop start and end to memory data structure
-	if (gNumOfGop < gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].dep_gop_num) {
-	    load_gop_info(gCurrentDecodingVideoFileIndex, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF);
-	}
+		if (gNumOfGop < gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].dep_gop_num) {
+			load_gop_info(gCurrentDecodingVideoFileIndex, gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF);
+		}
     }
     /*see if it's a gop start, if so, load the gop info*/
     LOGI(10, "gVideoPacketNum = %d; gNumOfGop = %d;", gVideoPacketNum, gNumOfGop);
@@ -126,18 +129,21 @@ static void render_a_frame(int p_zoomLevelUpdate, int _width, int _height, float
     avpicture_free(&gVideoPicture.data);
 }
 
-static void andzop_init(int pNumOfFile, char **pFileNameList, int pDebug) {
+static void andzop_init(char **pFileNameList, int pDebug) {
     int l_mbH, l_mbW, l_i;
-    get_video_info(pNumOfFile, pFileNameList, pDebug);
+    get_video_info(pFileNameList, pDebug);
     gVideoPacketNum = 0;
     gNumOfGop = 0;
 #ifdef SELECTIVE_DECODING
-	for (l_i = 0; l_i < pNumOfFile; ++l_i) {
+	for (l_i = 0; l_i < gNumOfVideoFiles; ++l_i) {
+		LOGI(10, "load gop info for %d out of %d", l_i, gNumOfVideoFiles);
 	    if (!gVideoCodecCtxList[l_i]->dump_dependency) {
 			load_gop_info(l_i, gVideoCodecCtxList[l_i]->g_gopF);
 	    }
 	}
-	for (l_i = 0; l_i < pNumOfFile; ++l_i) {
+	LOGI(10, "load gop info done for all");
+	for (l_i = 0; l_i < gNumOfVideoFiles; ++l_i) {
+		LOGI(10, "allocate_selected_decoding_fields for %d", l_i);
 		l_mbH = (gVideoCodecCtxList[l_i]->height + 15) / 16;
 		l_mbW = (gVideoCodecCtxList[l_i]->width + 15) / 16;
 		allocate_selected_decoding_fields(l_i, l_mbH, l_mbW);
@@ -180,7 +186,7 @@ static void *dump_dependency_function(void *arg) {
     int l_i;
     DUMP_DEP_PARAMS *l_params = (DUMP_DEP_PARAMS*)arg;
 	LOGI(10, "dump dependency for file: %d", l_params->videoFileIndex);
-    for (l_i = 0; l_i < 100; ++l_i) {
+    for (l_i = 0; l_i < NUM_OF_FRAMES_IN_BATCH; ++l_i) {
 		LOGI(10, "dump dependency for video %d packet %d", l_params->videoFileIndex, l_i);
 		dep_decode_a_video_packet(l_params->videoFileIndex);
     };
@@ -200,7 +206,7 @@ static void *dump_dependency_function(void *arg) {
 
 void *decode_video(void *arg) {
     int l_i;
-    for (l_i = 0; l_i < 100; ++l_i) {
+    for (l_i = 0; l_i < NUM_OF_FRAMES_IN_BATCH; ++l_i) {
 		if (l_i == 10) {
 			gZoomLevelUpdate = 1;
 		} 
@@ -234,32 +240,42 @@ int main(int argc, char **argv) {
     }    
     l_i = atoi(argv[1]);
 
-    andzop_init(argc-2, &argv[2], l_i);
+	LOGI(10, "argc = %d", argc);
+	gNumOfVideoFiles = argc-2;
+    andzop_init(&argv[2], l_i);
 	
-    gDepDumpThreadList = (pthread_t*)malloc((argc-2)*sizeof(pthread_t));
-	gDumpThreadParams = (DUMP_DEP_PARAMS *)malloc(sizeof(DUMP_DEP_PARAMS)*(argc-2));
-    for (l_i = 0; l_i < gNumOfVideoFiles; ++l_i) {
-        if (gVideoCodecCtxList[l_i]->dump_dependency) {
-			/*if we need to dump dependency, start a background thread for it*/
-			gDumpThreadParams[l_i].videoFileIndex = l_i;
-			if (pthread_create(&gDepDumpThreadList[l_i], NULL, dump_dependency_function, (void *)&gDumpThreadParams[l_i])) {
-			    LOGE(1, "Error: failed to create a native thread for dumping dependency");
-			}
-			LOGI(10, "tttttt: dependency dumping thread started! tttttt");
-        }
-    }
+	if (gVideoCodecCtxList[0]->dump_dependency) {
+		LOGI(10, "initialize dumping thread");
+		gDepDumpThreadList = (pthread_t*)malloc((argc-2)*sizeof(pthread_t));
+		gDumpThreadParams = (DUMP_DEP_PARAMS *)malloc(sizeof(DUMP_DEP_PARAMS)*(argc-2));
+		for (l_i = 0; l_i < gNumOfVideoFiles; ++l_i) {
+		    if (gVideoCodecCtxList[l_i]->dump_dependency) {
+				/*if we need to dump dependency, start a background thread for it*/
+				gDumpThreadParams[l_i].videoFileIndex = l_i;
+				if (pthread_create(&gDepDumpThreadList[l_i], NULL, dump_dependency_function, (void *)&gDumpThreadParams[l_i])) {
+					LOGE(1, "Error: failed to create a native thread for dumping dependency");
+				}
+				LOGI(10, "tttttt: dependency dumping thread started! tttttt");
+		    }
+		}
+	}
+	LOGI(10, "create decoding thread");
     if (pthread_create(&gVideoDecodeThread, NULL, decode_video, NULL)) {
 		LOGE(1, "Error: failed to createa native thread for decoding video");
-    }
-
+    } else {
+		LOGI(10, "decoding thread created");
+	}
+	
 	for (l_i = 0; l_i < gNumOfVideoFiles; ++l_i) {
+		LOGI(10, "access gVideoCodecCtxList[%d] of %d", l_i, gNumOfVideoFiles);
 		if (gVideoCodecCtxList[l_i]->dump_dependency) {
 			LOGI(10, "join a dep dump thread");
 	    	pthread_join(gDepDumpThreadList[l_i], NULL);
 		}
 	}
+	LOGI(10, "join decoding thread");
     pthread_join(gVideoDecodeThread, NULL);
-
+	LOGI(10, "decoding thread finished");
     andzop_finish(argc-2);
     return 0;
 }
