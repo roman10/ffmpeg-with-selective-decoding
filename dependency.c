@@ -47,9 +47,12 @@ void get_video_info(char **p_videoFilenameList, int p_debug) {
     gVideoStreamIndexList = (int*)malloc(gNumOfVideoFiles*sizeof(int));
     gVideoCodecCtxList = (AVCodecContext*)malloc(gNumOfVideoFiles*sizeof(AVCodecContext));
     gVideoPacketQueueList = (PacketQueue*)malloc(gNumOfVideoFiles*sizeof(PacketQueue));
+	gFormatCtxDepList = (AVFormatContext*)malloc(gNumOfVideoFiles*sizeof(AVFormatContext));
+    gVideoCodecCtxDepList = (AVCodecContext*)malloc(gNumOfVideoFiles*sizeof(AVCodecContext));
+	gVideoPacketDepList = (AVPacket*)malloc(gNumOfVideoFiles*sizeof(AVPacket));
 	for (l_i = 0; l_i < gNumOfVideoFiles; ++l_i) {
 		gVideoPacketQueueList[l_i].dep_gop_num = 0;
-		gVideoPacketQueueList[l_i].decode_gop_num = 0;
+		g_decode_gop_num = 0;
 		gVideoPacketQueueList[l_i].nb_packets = 0;
 	}
     for (l_i = 0; l_i < gNumOfVideoFiles; ++l_i) {
@@ -69,9 +72,6 @@ void get_video_info(char **p_videoFilenameList, int p_debug) {
 #endif  
 	    if ((!if_file_exists(l_depGopRecFileName)) || (!if_file_exists(l_depIntraFileName)) || (!if_file_exists(l_depInterFileName)) || (!if_file_exists(l_depMbPosFileName)) || (!if_file_exists(l_depDcpFileName))) {
 			l_dumpDep = 1;
-			gFormatCtxDepList = (AVFormatContext*)malloc(gNumOfVideoFiles*sizeof(AVFormatContext));
-    		gVideoCodecCtxDepList = (AVCodecContext*)malloc(gNumOfVideoFiles*sizeof(AVCodecContext));
-			gVideoPacketDepList = (AVPacket*)malloc(gNumOfVideoFiles*sizeof(AVPacket));
 	    } else {
 			l_dumpDep = 0;	
 	    }
@@ -689,7 +689,7 @@ void decode_a_video_packet(int p_videoFileIndex, int _roiStH, int _roiStW, int _
 				av_free_packet(&gVideoPacket);
 			}
 		}
-		LOGI(10, "read selected video file frame %d", (gFormatCtxList == NULL)?0:1);
+		LOGI(10, "read selected video file frame for video %d", p_videoFileIndex);
 		if (gVideoCodecCtxList[p_videoFileIndex]->dump_dependency) {
 			//lGetPacketStatus = packet_queue_get(&gVideoPacketQueue, &gVideoPacket);
 			lGetPacketStatus = av_read_frame(gFormatCtxList[p_videoFileIndex], &gVideoPacket);

@@ -42,7 +42,7 @@
 //#define DUMP_VIDEO_FRAME_BYTES			//enabled: dump the bytes to a binary file
 //#define DUMP_SELECTIVE_DEP			//enabled: dump the relationship in memory to files
 
-#define MAX_NUM_OF_GOP 50
+#define MAX_NUM_OF_GOP 500
 #define MAX_FRAME_NUM_IN_GOP 50
 #define MAX_MB_H 100
 #define MAX_MB_W 100
