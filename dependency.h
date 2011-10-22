@@ -70,12 +70,12 @@ AVFormatContext **gFormatCtxList;
 AVFormatContext **gFormatCtxDepList;
 int gNumOfVideoFiles;
 int gCurrentDecodingVideoFileIndex;
-//char *gFileName;	  //the file name of the video
+char **gVideoFileNameList;	   //the list of video file names
 int *gVideoStreamIndexList;    //video stream index
 int gStFrame;
 
 int gVideoPacketNum;         //the current frame number
-int g_dep_videoPacketNum;    //the current frame number when dumping dependency
+//int g_dep_videoPacketNum;    //the current frame number when dumping dependency
 
 AVPacket *gVideoPacketDepList; //the video packet for dumping dependency
 AVPacket gVideoPacket;    //the original video packet
@@ -90,8 +90,8 @@ FILE *g_interDepF;
 FILE *g_dcPredF;
 FILE *g_gopF;*/
 
-int gGopStart[MAX_NUM_OF_GOP];
-int gGopEnd[MAX_NUM_OF_GOP];
+int gGopStart;
+int gGopEnd;
 int gNumOfGop;
 
 int *gZoomLevelToVideoIndex;
