@@ -68,6 +68,7 @@ static void wait_get_dependency() {
     //if (if_dependency_complete(gCurrentDecodingVideoFileIndex, g_decode_gop_num)) {
         while (g_decode_gop_num >= gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].dep_gop_num) {
 			/*[TODO]it might be more appropriate to use some sort of signal*/
+			LOGI(10, ".......waiting for dependency for video %d, on gop %d, decode gop %d", gCurrentDecodingVideoFileIndex, gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].dep_gop_num, g_decode_gop_num);
 			usleep(50);    
         }
 		LOGI(10, "%d:%d:%d", gNumOfGop, g_decode_gop_num, gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].dep_gop_num);    
@@ -152,6 +153,7 @@ static void render_a_frame(int p_zoomLevelUpdate, int _width, int _height, float
 
 static void andzop_init(char **pFileNameList, int pDebug) {
     int l_mbH, l_mbW, l_i;
+	gVideoFileNameList = pFileNameList;
     get_video_info(pFileNameList, pDebug);
     gVideoPacketNum = 0;
     gNumOfGop = 0;

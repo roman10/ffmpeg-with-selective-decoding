@@ -50,6 +50,7 @@ void get_video_info(char **p_videoFilenameList, int p_debug) {
     gVideoCodecCtxDepList = (AVCodecContext*)malloc(gNumOfVideoFiles*sizeof(AVCodecContext));
 	gVideoPacketDepList = (AVPacket*)malloc(gNumOfVideoFiles*sizeof(AVPacket));
 	for (l_i = 0; l_i < gNumOfVideoFiles; ++l_i) {
+		packet_queue_init(&gVideoPacketQueueList[l_i]);		//initialize the packet queue
 		gVideoPacketQueueList[l_i].dep_gop_num = 0;
 		g_decode_gop_num = 0;
 		gVideoPacketQueueList[l_i].nb_packets = 0;
@@ -601,13 +602,13 @@ void dep_decode_a_video_packet(int p_videoFileIndex) {
 	char l_depGopRecFileName[100], l_depIntraFileName[100], l_depInterFileName[100], l_depMbPosFileName[100], l_depDcpFileName[100];
     AVFrame *l_videoFrame = avcodec_alloc_frame();
     int l_numOfDecodedFrames, l_frameType;
-    //LOGI(10, "dep_decode_a_video_packet for video: %d", p_videoFileIndex);
+    LOGI(10, "dep_decode_a_video_packet for video: %d", p_videoFileIndex);
     while (av_read_frame(gFormatCtxDepList[p_videoFileIndex], &gVideoPacketDepList[p_videoFileIndex]) >= 0) {
 		if (gVideoPacketDepList[p_videoFileIndex].stream_index == gVideoStreamIndexList[p_videoFileIndex]) {
-			//LOGI(10, "got a video packet, dump dependency: %d", p_videoFileIndex);	
+			LOGI(10, "got a video packet, dump dependency: %d", p_videoFileIndex);	
 		    ++gVideoCodecCtxDepList[p_videoFileIndex]->dep_video_packet_num;
 			/*put the video packet into the packet queue, for the decoding thread to access*/
-			//LOGI(10, "put a video packet into queue: %d", p_videoFileIndex);
+			LOGI(10, "put a video packet into queue: %d", p_videoFileIndex);
 			packet_queue_put(&gVideoPacketQueueList[p_videoFileIndex], &gVideoPacketDepList[p_videoFileIndex]);
 			/*update the gop information if it's an I-frame
 			update: for every GOP, we generate a set of dependency files. It has the following advantages:
@@ -617,31 +618,36 @@ void dep_decode_a_video_packet(int p_videoFileIndex) {
 			*/
 			l_frameType = (gVideoPacketDepList[p_videoFileIndex].data[4] & 0xC0);
 		    if (l_frameType == 0x00) {    //an I frame packet
+				LOGI(10, "dump dependency: got I frame");
 				if (gVideoCodecCtxDepList[p_videoFileIndex]->dep_video_packet_num == 1) {
 					//if it's first frame, no action is needed
 				} else {
 					//print the end frame number of previoius gop
-					fprintf(gVideoCodecCtxDepList[p_videoFileIndex]->g_gopF, "%d:\n", gVideoCodecCtxDepList[p_videoFileIndex]->dep_video_packet_num - 1);
+					if (gVideoCodecCtxDepList[p_videoFileIndex]->dump_dependency) {
+						fprintf(gVideoCodecCtxDepList[p_videoFileIndex]->g_gopF, "%d:\n", gVideoCodecCtxDepList[p_videoFileIndex]->dep_video_packet_num - 1);
+						//TODO: fflush all the dependency files for previous gop, may not be necessary since we're closing these files
+				        fflush(gVideoCodecCtxDepList[p_videoFileIndex]->g_gopF);
+				        fflush(gVideoCodecCtxDepList[p_videoFileIndex]->g_mbPosF);
+				        fflush(gVideoCodecCtxDepList[p_videoFileIndex]->g_dcPredF);
+				        fflush(gVideoCodecCtxDepList[p_videoFileIndex]->g_intraDepF);
+				        fflush(gVideoCodecCtxDepList[p_videoFileIndex]->g_interDepF);
+						//close all dependency files for this GOP
+						fclose(gVideoCodecCtxDepList[p_videoFileIndex]->g_gopF);
+				        fclose(gVideoCodecCtxDepList[p_videoFileIndex]->g_mbPosF);
+				        fclose(gVideoCodecCtxDepList[p_videoFileIndex]->g_dcPredF);
+				        fclose(gVideoCodecCtxDepList[p_videoFileIndex]->g_intraDepF);
+				        fclose(gVideoCodecCtxDepList[p_videoFileIndex]->g_interDepF);
+					}
 					++gVideoPacketQueueList[p_videoFileIndex].dep_gop_num;
-		            //TODO: fflush all the dependency files for previous gop, may not be necessary since we're closing these files
-		            fflush(gVideoCodecCtxDepList[p_videoFileIndex]->g_gopF);
-		            fflush(gVideoCodecCtxDepList[p_videoFileIndex]->g_mbPosF);
-		            fflush(gVideoCodecCtxDepList[p_videoFileIndex]->g_dcPredF);
-		            fflush(gVideoCodecCtxDepList[p_videoFileIndex]->g_intraDepF);
-		            fflush(gVideoCodecCtxDepList[p_videoFileIndex]->g_interDepF);
-					//close all dependency files for this GOP
-					fclose(gVideoCodecCtxDepList[p_videoFileIndex]->g_gopF);
-		            fclose(gVideoCodecCtxDepList[p_videoFileIndex]->g_mbPosF);
-		            fclose(gVideoCodecCtxDepList[p_videoFileIndex]->g_dcPredF);
-		            fclose(gVideoCodecCtxDepList[p_videoFileIndex]->g_intraDepF);
-		            fclose(gVideoCodecCtxDepList[p_videoFileIndex]->g_interDepF);
 				}
 				/*check if the dependency files exist, if not, we'll need to dump the dependencies*/
+				LOGI(10, "dependency files for video %d gop %d", p_videoFileIndex, gVideoPacketQueueList[p_videoFileIndex].dep_gop_num);  
     			sprintf(l_depGopRecFileName, "./%s_goprec_gop%d.txt", gVideoFileNameList[p_videoFileIndex], gVideoPacketQueueList[p_videoFileIndex].dep_gop_num);
     			sprintf(l_depIntraFileName, "./%s_intra_gop%d.txt", gVideoFileNameList[p_videoFileIndex], gVideoPacketQueueList[p_videoFileIndex].dep_gop_num);
     			sprintf(l_depInterFileName, "./%s_inter_gop%d.txt", gVideoFileNameList[p_videoFileIndex], gVideoPacketQueueList[p_videoFileIndex].dep_gop_num);
     			sprintf(l_depMbPosFileName, "./%s_mbpos_gop%d.txt", gVideoFileNameList[p_videoFileIndex], gVideoPacketQueueList[p_videoFileIndex].dep_gop_num);
-    			sprintf(l_depDcpFileName, "./%s_dcp_gop%d.txt", gVideoFileNameList[p_videoFileIndex], gVideoPacketQueueList[p_videoFileIndex].dep_gop_num);  
+    			sprintf(l_depDcpFileName, "./%s_dcp_gop%d.txt", gVideoFileNameList[p_videoFileIndex], gVideoPacketQueueList[p_videoFileIndex].dep_gop_num);
+				LOGI(10, "dependency files for video %d gop %d", p_videoFileIndex, gVideoPacketQueueList[p_videoFileIndex].dep_gop_num);  
 #ifdef CLEAR_DEP_BEFORE_START
 				remove(l_depGopRecFileName);
 				remove(l_depIntraFileName);
@@ -655,12 +661,13 @@ void dep_decode_a_video_packet(int p_videoFileIndex) {
 					gVideoCodecCtxDepList[p_videoFileIndex]->g_gopF = fopen(l_depGopRecFileName, "r");					
 					if (load_gop_info(gVideoCodecCtxDepList[p_videoFileIndex]->g_gopF) != 0) {
 						//the file content is complete, don't dump dependency
+						LOGI(10, "dependency info is complete for video %d, gop %d", p_videoFileIndex, gVideoPacketQueueList[p_videoFileIndex].dep_gop_num);
 						gVideoCodecCtxDepList[p_videoFileIndex]->dump_dependency = 0;
 					}
 					fclose(gVideoCodecCtxDepList[p_videoFileIndex]->g_gopF);
 				} 
 				if (gVideoCodecCtxDepList[p_videoFileIndex]->dump_dependency) {
-					packet_queue_init(&gVideoPacketQueueList[p_videoFileIndex]);		//initialize the packet queue
+					LOGI(10, "dumping dependency starts from video %d, gop %d", p_videoFileIndex, gVideoPacketQueueList[p_videoFileIndex].dep_gop_num);
 					gVideoCodecCtxDepList[p_videoFileIndex]->g_gopF = fopen(l_depGopRecFileName, "w");
 					gVideoCodecCtxDepList[p_videoFileIndex]->g_mbPosF = fopen(l_depMbPosFileName, "w");
 					gVideoCodecCtxDepList[p_videoFileIndex]->g_dcPredF = fopen(l_depDcpFileName, "w");
