@@ -51,8 +51,8 @@ void get_video_info(char **p_videoFilenameList, int p_debug) {
 	gVideoPacketDepList = (AVPacket*)malloc(gNumOfVideoFiles*sizeof(AVPacket));
 	for (l_i = 0; l_i < gNumOfVideoFiles; ++l_i) {
 		packet_queue_init(&gVideoPacketQueueList[l_i]);		//initialize the packet queue
-		gVideoPacketQueueList[l_i].dep_gop_num = 0;
-		g_decode_gop_num = 0;
+		gVideoPacketQueueList[l_i].dep_gop_num = 1;
+		g_decode_gop_num = 1;
 		gVideoPacketQueueList[l_i].nb_packets = 0;
 	}
     for (l_i = 0; l_i < gNumOfVideoFiles; ++l_i) {
@@ -403,6 +403,7 @@ void dump_frame_to_file(int _frameNum) {
         }
     }
     fclose(l_pFile);
+	LOGI(10, "frame dumped to file");
 }
 
 //copy count bits starting from startPos from data to buf starting at bufPos
