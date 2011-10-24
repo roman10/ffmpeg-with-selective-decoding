@@ -92,7 +92,6 @@ FILE *g_gopF;*/
 
 int gGopStart;
 int gGopEnd;
-int gNumOfGop;
 
 int *gZoomLevelToVideoIndex;
 
@@ -102,7 +101,7 @@ void free_selected_decoding_fields(int p_videoFileIndex, int _mbHeight);
 void dump_frame_to_file(int _frameNum);
 void decode_a_video_packet(int p_videoFileIndex, int _roiStH, int _roiStW, int _roiEdH, int _roiEdW);
 void dep_decode_a_video_packet(int p_videoFileIndex);
-int load_gop_info(FILE* p_gopRecFile);
+int load_gop_info(FILE* p_gopRecFile, int *p_startF, int *p_endF);
 int if_dependency_complete(int p_videoFileIndex, int p_gopNum);
 void prepare_decode_of_gop(int p_videoFileIndex, int _stFrame, int _edFrame, int _roiSh, int _roiSw, int _roiEh, int _roiEw);
 

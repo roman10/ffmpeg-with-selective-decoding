@@ -71,12 +71,12 @@ static void wait_get_dependency() {
 			LOGI(10, ".......waiting for dependency for video %d, on gop %d, decode gop %d", gCurrentDecodingVideoFileIndex, gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].dep_gop_num, g_decode_gop_num);
 			usleep(50);    
         }
-		LOGI(10, "%d:%d:%d", gNumOfGop, g_decode_gop_num, gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].dep_gop_num);    
+		LOGI(10, "%d:%d", g_decode_gop_num, gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].dep_gop_num);    
     //}
 }
 
 /*for testing: we dump the decoded frame to a file: here (_roiSh, _roiSw) and (_roiEh, _roiEw) are in pixel*/
-static void render_a_frame(int p_zoomLevelUpdate, int _width, int _height, float _roiSh, float _roiSw, float _roiEh, float _roiEw) {
+static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, float _roiEh, float _roiEw) {
     int li;
     int l_roiSh, l_roiSw, l_roiEh, l_roiEw;
 	char l_depGopRecFileName[100], l_depIntraFileName[100], l_depInterFileName[100], l_depMbPosFileName[100], l_depDcpFileName[100];
@@ -85,13 +85,13 @@ static void render_a_frame(int p_zoomLevelUpdate, int _width, int _height, float
     gVideoPicture.width = _width;
     ++gVideoPacketNum;  
     /*see if it's a gop start, if so, load the gop info*/
-    LOGI(10, "gVideoPacketNum = %d; gNumOfGop = %d;", gVideoPacketNum, gNumOfGop);
+    LOGI(10, "--------------gVideoPacketNum = %d;  = %d;", gVideoPacketNum, g_decode_gop_num);
 	if (gVideoPacketNum == 1) {
 		/*if it's first packet, we load the gop info*/
 		wait_get_dependency();
 		sprintf(l_depGopRecFileName, "./%s_goprec_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);
 		gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF = fopen(l_depGopRecFileName, "r");
-		load_gop_info(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF);
+		load_gop_info(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF, &gGopStart, &gGopEnd);
 	} 
     if (gVideoPacketNum == gGopStart) {
         //start of a gop
@@ -125,7 +125,9 @@ static void render_a_frame(int p_zoomLevelUpdate, int _width, int _height, float
     }
     avpicture_free(&gVideoPicture.data);
 	/*if the gop is done decoding*/
+	LOGI(10, "_____________________%d: %d", gVideoPacketNum, gGopEnd);
 	if (gVideoPacketNum == gGopEnd) {
+		LOGI(10, "-------------------------%d--------------------------", g_decode_gop_num);
 		++g_decode_gop_num;		//increase the counter
 		//close the dependency files 
 		fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF);
@@ -134,8 +136,8 @@ static void render_a_frame(int p_zoomLevelUpdate, int _width, int _height, float
         fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_intraDepF);
         fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_interDepF);
 		/*check if we need to update zoom level, note that we only update the zoom level at the end of GOP*/
-		if (p_zoomLevelUpdate != 0) {
-			gCurrentDecodingVideoFileIndex += p_zoomLevelUpdate;
+		if (gZoomLevelUpdate != 0) {
+			gCurrentDecodingVideoFileIndex += gZoomLevelUpdate;
 			if (gCurrentDecodingVideoFileIndex >= gNumOfVideoFiles) {
 				gCurrentDecodingVideoFileIndex = gNumOfVideoFiles - 1;
 			} else if (gCurrentDecodingVideoFileIndex < 0) {
@@ -147,7 +149,7 @@ static void render_a_frame(int p_zoomLevelUpdate, int _width, int _height, float
 		wait_get_dependency();
 		sprintf(l_depGopRecFileName, "./%s_goprec_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);
 		gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF = fopen(l_depGopRecFileName, "r");
-		load_gop_info(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF);
+		load_gop_info(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF, &gGopStart, &gGopEnd);
     }
 }
 
@@ -156,7 +158,6 @@ static void andzop_init(char **pFileNameList, int pDebug) {
 	gVideoFileNameList = pFileNameList;
     get_video_info(pFileNameList, pDebug);
     gVideoPacketNum = 0;
-    gNumOfGop = 0;
 #ifdef SELECTIVE_DECODING
 	for (l_i = 0; l_i < gNumOfVideoFiles; ++l_i) {
 		LOGI(10, "allocate_selected_decoding_fields for %d", l_i);
@@ -237,9 +238,9 @@ void *decode_video(void *arg) {
 		} 
 		
 #if defined(SELECTIVE_DECODING) || defined(NORM_DECODE_DEBUG)
-		render_a_frame(gZoomLevelUpdate, 800, 480, 22, 23, 100, 180);	//decode frame
+		render_a_frame(800, 480, 22, 23, 100, 180);	//decode frame
 #else
-		render_a_frame(gZoomLevelUpdate, 800, 480, 0, 0, 10, 25);	//decode frame
+		render_a_frame(800, 480, 0, 0, 10, 25);	//decode frame
 #endif
     }
 }

@@ -581,7 +581,7 @@ static void compute_mb_mask_from_inter_frame_dependency(int _stFrame, int _edFra
 int if_dependency_complete(int p_videoFileIndex, int p_gopNum) {
 	char l_depGopRecFileName[100], l_depIntraFileName[100], l_depInterFileName[100], l_depMbPosFileName[100], l_depDcpFileName[100];
 	FILE* lGopF;
-	int ret;
+	int ret, ti, tj;
 	/*check if the dependency files exist, if not, we'll need to dump the dependencies*/
 	sprintf(l_depGopRecFileName, "./%s_goprec_gop%d.txt", gVideoFileNameList[p_videoFileIndex], p_gopNum);
 	sprintf(l_depIntraFileName, "./%s_intra_gop%d.txt", gVideoFileNameList[p_videoFileIndex], p_gopNum);
@@ -593,7 +593,7 @@ int if_dependency_complete(int p_videoFileIndex, int p_gopNum) {
 	} else {
 		//further check if the gop file contains both start frame and end frame
 		lGopF = fopen(l_depGopRecFileName, "r");
-		ret = load_gop_info(lGopF);
+		ret = load_gop_info(lGopF, &ti, &tj);
 		fclose(lGopF);
 		return ((ret == 0)?1:0);
 	}
@@ -603,6 +603,7 @@ void dep_decode_a_video_packet(int p_videoFileIndex) {
 	char l_depGopRecFileName[100], l_depIntraFileName[100], l_depInterFileName[100], l_depMbPosFileName[100], l_depDcpFileName[100];
     AVFrame *l_videoFrame = avcodec_alloc_frame();
     int l_numOfDecodedFrames, l_frameType;
+	int ti, tj;
     LOGI(10, "dep_decode_a_video_packet for video: %d", p_videoFileIndex);
     while (av_read_frame(gFormatCtxDepList[p_videoFileIndex], &gVideoPacketDepList[p_videoFileIndex]) >= 0) {
 		if (gVideoPacketDepList[p_videoFileIndex].stream_index == gVideoStreamIndexList[p_videoFileIndex]) {
@@ -660,7 +661,7 @@ void dep_decode_a_video_packet(int p_videoFileIndex) {
 				if ((if_file_exists(l_depGopRecFileName)) && (if_file_exists(l_depIntraFileName)) && (if_file_exists(l_depInterFileName)) && (if_file_exists(l_depMbPosFileName)) && (if_file_exists(l_depDcpFileName))) {
 					//if all files exist, further check l_depGopRecFileName file content, see if it actually contains both GOP start and end frame
 					gVideoCodecCtxDepList[p_videoFileIndex]->g_gopF = fopen(l_depGopRecFileName, "r");					
-					if (load_gop_info(gVideoCodecCtxDepList[p_videoFileIndex]->g_gopF) != 0) {
+					if (load_gop_info(gVideoCodecCtxDepList[p_videoFileIndex]->g_gopF, &ti, &tj) != 0) {
 						//the file content is complete, don't dump dependency
 						LOGI(10, "dependency info is complete for video %d, gop %d", p_videoFileIndex, gVideoPacketQueueList[p_videoFileIndex].dep_gop_num);
 						gVideoCodecCtxDepList[p_videoFileIndex]->dump_dependency = 0;
@@ -927,23 +928,22 @@ void decode_a_video_packet(int p_videoFileIndex, int _roiStH, int _roiStW, int _
 }
 
 /*load the gop information, return 0 if everything goes well; otherwise, return a non-zero value*/
-int load_gop_info(FILE* p_gopRecFile) {
+int load_gop_info(FILE* p_gopRecFile, int *p_startF, int *p_endF) {
     char l_gopRecLine[50];
     char *l_aToken;
-    int l_stFrame = 0, l_edFrame = 0;
+    *p_startF = 0;
+	*p_endF = 0;
 	if (fgets(l_gopRecLine, 50, p_gopRecFile) == NULL)
 			return -1;
     if ((l_aToken = strtok(l_gopRecLine, ":")) != NULL) 
-        l_stFrame = atoi(l_aToken);
+        *p_startF = atoi(l_aToken);
 	else
     	return -1;
     if ((l_aToken = strtok(NULL, ":")) != NULL) 
-        l_edFrame = atoi(l_aToken);
+        *p_endF = atoi(l_aToken);
     else
     	return -1;
-    gGopStart = l_stFrame;
-    gGopEnd = l_edFrame;
-    LOGI(10, "load gop info ends: %d-%d", gGopStart, gGopEnd);
+    LOGI(10, "load gop info ends: %d-%d", *p_startF, *p_endF);
 	return 0;
 }
 
