@@ -156,7 +156,8 @@ static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, 
 static void andzop_init(char **pFileNameList, int pDebug) {
     int l_mbH, l_mbW, l_i;
 	gVideoFileNameList = pFileNameList;
-    get_video_info(pFileNameList, pDebug);
+	gCurrentDecodingVideoFileIndex = 0;
+    get_video_info(pDebug);
     gVideoPacketNum = 0;
 #ifdef SELECTIVE_DECODING
 	for (l_i = 0; l_i < gNumOfVideoFiles; ++l_i) {

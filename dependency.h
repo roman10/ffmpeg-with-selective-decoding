@@ -42,7 +42,6 @@
 //#define DUMP_VIDEO_FRAME_BYTES			//enabled: dump the bytes to a binary file
 //#define DUMP_SELECTIVE_DEP			//enabled: dump the relationship in memory to files
 
-#define MAX_NUM_OF_GOP 500
 #define MAX_FRAME_NUM_IN_GOP 50
 #define MAX_MB_H 100
 #define MAX_MB_W 100
@@ -95,7 +94,7 @@ int gGopEnd;
 
 int *gZoomLevelToVideoIndex;
 
-void get_video_info(char **p_videoFilename, int p_debug);
+void get_video_info(int p_debug);
 void allocate_selected_decoding_fields(int p_videoFileIndex, int _mbHeight, int _mbWidth);
 void free_selected_decoding_fields(int p_videoFileIndex, int _mbHeight);
 void dump_frame_to_file(int _frameNum);
