@@ -45,7 +45,7 @@ This doesn't apply to dcp as it's part of the avcodecContext
 
 #include "dependency.h"
 
-#define NUM_OF_FRAMES_IN_BATCH 800		
+#define NUM_OF_FRAMES_IN_BATCH 100	
 
 /*these two lines are necessary for compilation*/
 const char program_name[] = "FFplay";
