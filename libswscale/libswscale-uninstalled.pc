@@ -1,7 +1,7 @@
 prefix=
 exec_prefix=
 libdir=${pcfiledir}
-includedir=/home/roman10/Desktop/master/ffmpeg-with-selective-decoding
+includedir=/home/roman10/Desktop/github/ffmpeg-with-selective-decoding
 
 Name: libswscale
 Description: FFmpeg image rescaling library

@@ -69,7 +69,7 @@ static void wait_get_dependency() {
         while (g_decode_gop_num >= gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].dep_gop_num) {
 			/*[TODO]it might be more appropriate to use some sort of signal*/
 			LOGI(10, ".......waiting for dependency for video %d, on gop %d, decode gop %d", gCurrentDecodingVideoFileIndex, gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].dep_gop_num, g_decode_gop_num);
-			usleep(50);    
+			usleep(5000);    
         }
 		LOGI(10, "%d:%d", g_decode_gop_num, gVideoPacketQueueList[gCurrentDecodingVideoFileIndex].dep_gop_num);    
     //}

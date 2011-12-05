@@ -983,14 +983,15 @@ void decode_a_video_packet(int p_videoFileIndex, int _roiStH, int _roiStW, int _
             l_selectiveDecodingDataSize = 0;
 			lMbStPos += (gVideoPacketNum - gStFrame)*l_mbHeight*l_mbWidth;
 			lMbEdPos += (gVideoPacketNum - gStFrame)*l_mbHeight*l_mbWidth;
-            l_selectiveDecodingDataSize += *lMbStPos;
+			LOGI(10, "lMbStPos: %d", (*lMbStPos));
+            l_selectiveDecodingDataSize += (*lMbStPos);
             //get the size for needed mbs
             for (l_i = 0; l_i < l_mbHeight; ++l_i) {
                 for (l_j = 0; l_j < l_mbWidth; ++l_j) {
                     if (gVideoCodecCtxList[p_videoFileIndex]->selected_mb_mask[l_i][l_j] == 1) {
 			//LOGI(10, "%d:%d", mbEndPos[gVideoPacketNum - gStFrame][l_i][l_j], mbStartPos[gVideoPacketNum - gStFrame][l_i][l_j]);
                         //l_selectiveDecodingDataSize += (mbEndPos[gVideoPacketNum - gStFrame][l_i][l_j] - mbStartPos[gVideoPacketNum - gStFrame][l_i][l_j]);
-						l_selectiveDecodingDataSize += (*lMbEdPos - *lMbStPos);
+						l_selectiveDecodingDataSize += ((*lMbEdPos) - (*lMbStPos));
 						++lMbEdPos;
 						++lMbStPos;
                     }
