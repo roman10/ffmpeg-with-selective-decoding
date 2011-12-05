@@ -79,7 +79,7 @@ static void wait_get_dependency() {
 static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, float _roiEh, float _roiEw) {
     int li;
     int l_roiSh, l_roiSw, l_roiEh, l_roiEw;
-	char l_depGopRecFileName[100], l_depIntraFileName[100], l_depInterFileName[100], l_depMbPosFileName[100], l_depDcpFileName[100];
+	char l_depGopRecFileName[100], l_depIntraFileName[100], l_depInterFileName[100], l_depDcpFileName[100];
 	LOGI(10, "render_a_frame");
     gVideoPicture.height = _height;
     gVideoPicture.width = _width;
@@ -108,9 +108,10 @@ static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, 
 		//open the dependency files for this gop
 		sprintf(l_depIntraFileName, "./%s_intra_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);
 		sprintf(l_depInterFileName, "./%s_inter_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);
-		sprintf(l_depMbPosFileName, "./%s_mbpos_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);
+		sprintf(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_mbStPosFileName, "./%s_mbstpos_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);
+		sprintf(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_mbEdPosFileName, "./%s_mbedpos_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);
 		sprintf(l_depDcpFileName, "./%s_dcp_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);  	    
-	    gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_mbPosF = fopen(l_depMbPosFileName, "r");
+	    //gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_mbPosF = fopen(l_depMbPosFileName, "r");
 	    gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_dcPredF = fopen(l_depDcpFileName, "r");
 	    gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_intraDepF = fopen(l_depIntraFileName, "r");
 	    gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_interDepF = fopen(l_depInterFileName, "r");
@@ -131,7 +132,7 @@ static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, 
 		++g_decode_gop_num;		//increase the counter
 		//close the dependency files 
 		fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF);
-        fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_mbPosF);
+        //fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_mbPosF);
         fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_dcPredF);
         fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_intraDepF);
         fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_interDepF);
@@ -184,7 +185,7 @@ static void andzop_finish(int pNumOfFile) {
 #endif 
 #if defined(SELECTIVE_DECODING) || defined(NORM_DECODE_DEBUG)
 		/*close all dependency files*/
-		fclose(gVideoCodecCtxList[l_i]->g_mbPosF);
+		//fclose(gVideoCodecCtxList[l_i]->g_mbPosF);
 		fclose(gVideoCodecCtxList[l_i]->g_intraDepF);
 		fclose(gVideoCodecCtxList[l_i]->g_interDepF);
 		fclose(gVideoCodecCtxList[l_i]->g_dcPredF);
@@ -210,7 +211,8 @@ static void *dump_dependency_function(void *arg) {
     };
 	//print the last frame to the gop file, then close all dependency files
 	fprintf(gVideoCodecCtxDepList[l_params->videoFileIndex]->g_gopF, "%d:\n", gVideoCodecCtxDepList[l_params->videoFileIndex]->dep_video_packet_num);
-    fclose(gVideoCodecCtxDepList[l_params->videoFileIndex]->g_mbPosF);
+    fclose(gVideoCodecCtxDepList[l_params->videoFileIndex]->g_mbStPosF);
+    fclose(gVideoCodecCtxDepList[l_params->videoFileIndex]->g_mbEdPosF);
     fclose(gVideoCodecCtxDepList[l_params->videoFileIndex]->g_intraDepF);
     fclose(gVideoCodecCtxDepList[l_params->videoFileIndex]->g_interDepF);
     fclose(gVideoCodecCtxDepList[l_params->videoFileIndex]->g_dcPredF);
@@ -237,11 +239,11 @@ void *decode_video(void *arg) {
 		if (l_i == 80) {
 			gZoomLevelUpdate = 3;
 		} 
-		
+		//load_frame_mb_stindex(0);
 #if defined(SELECTIVE_DECODING) || defined(NORM_DECODE_DEBUG)
-		render_a_frame(800, 480, 22, 23, 100, 180);	//decode frame
+		render_a_frame(800, 480, 0, 0, 1000, 1800);	//decode frame
 #else
-		render_a_frame(800, 480, 0, 0, 10, 25);	//decode frame
+		render_a_frame(800, 480, 0, 0, 100, 250);	//decode frame
 #endif
     }
 }
