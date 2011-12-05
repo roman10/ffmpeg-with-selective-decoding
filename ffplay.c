@@ -110,9 +110,9 @@ static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, 
 		sprintf(l_depInterFileName, "./%s_inter_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);
 		sprintf(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_mbStPosFileName, "./%s_mbstpos_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);
 		sprintf(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_mbEdPosFileName, "./%s_mbedpos_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);
-		sprintf(l_depDcpFileName, "./%s_dcp_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);  	    
+		sprintf(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_dcPredFileName, "./%s_dcp_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);  	    
 	    //gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_mbPosF = fopen(l_depMbPosFileName, "r");
-	    gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_dcPredF = fopen(l_depDcpFileName, "r");
+	    //gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_dcPredF = fopen(l_depDcpFileName, "r");
 	    gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_intraDepF = fopen(l_depIntraFileName, "r");
 	    gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_interDepF = fopen(l_depInterFileName, "r");
 		//load the pre computation result and compute the inter frame dependency
@@ -133,7 +133,7 @@ static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, 
 		//close the dependency files 
 		fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF);
         //fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_mbPosF);
-        fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_dcPredF);
+        //fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_dcPredF);
         fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_intraDepF);
         fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_interDepF);
 		/*check if we need to update zoom level, note that we only update the zoom level at the end of GOP*/
@@ -153,6 +153,7 @@ static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, 
 		//unmap the files
 		unload_frame_mb_stindex();
 		unload_frame_mb_edindex();
+		unload_frame_dc_pred_direction();
 		load_gop_info(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF, &gGopStart, &gGopEnd);
     }
 }
@@ -191,7 +192,7 @@ static void andzop_finish(int pNumOfFile) {
 		//fclose(gVideoCodecCtxList[l_i]->g_mbPosF);
 		fclose(gVideoCodecCtxList[l_i]->g_intraDepF);
 		fclose(gVideoCodecCtxList[l_i]->g_interDepF);
-		fclose(gVideoCodecCtxList[l_i]->g_dcPredF);
+		//fclose(gVideoCodecCtxList[l_i]->g_dcPredF);
 		fclose(gVideoCodecCtxList[l_i]->g_gopF);
 #endif
 	}

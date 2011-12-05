@@ -113,4 +113,5 @@ void load_frame_mb_stindex(int p_videoFileIndex);
 void load_frame_mb_edindex(int p_videoFileIndex);
 void unload_frame_mb_stindex(void);
 void unload_frame_mb_edindex(void);
+void unload_frame_dc_pred_direction(void);
 

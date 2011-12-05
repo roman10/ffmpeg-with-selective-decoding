@@ -2931,6 +2931,7 @@ typedef struct AVCodecContext {
     FILE *g_intraDepF;
     FILE *g_interDepF;
     FILE *g_dcPredF;
+	char g_dcPredFileName[100];
     FILE *g_gopF;
     ///*file pointers for reading dependency relationship*/
     /*FILE *g_de_mbPosF;
