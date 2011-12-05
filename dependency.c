@@ -163,10 +163,10 @@ void allocate_selected_decoding_fields(int p_videoFileIndex, int _mbHeight, int 
     for (l_i = 0; l_i < _mbHeight; ++l_i) {
         gVideoCodecCtxList[p_videoFileIndex]->selected_mb_mask[l_i] = (unsigned char *) malloc(_mbWidth * sizeof(unsigned char));
     }
-    gVideoCodecCtxList[p_videoFileIndex]->pred_dc_dir = (unsigned char **) malloc(_mbHeight * sizeof(unsigned char *));
+    /*gVideoCodecCtxList[p_videoFileIndex]->pred_dc_dir = (unsigned char **) malloc(_mbHeight * sizeof(unsigned char *));
     for (l_i = 0; l_i < _mbHeight; ++l_i) {
         gVideoCodecCtxList[p_videoFileIndex]->pred_dc_dir[l_i] = (unsigned char *) malloc(_mbWidth * sizeof(unsigned char));
-    }
+    }*/
 	LOGI(10, "allocate %d video selected decoding fields: %d, %d is done", p_videoFileIndex, _mbHeight, _mbWidth);
 }
 
@@ -177,10 +177,10 @@ void free_selected_decoding_fields(int p_videoFileIndex, int _mbHeight) {
         free(gVideoCodecCtxList[p_videoFileIndex]->selected_mb_mask[l_i]);
     }
     free(gVideoCodecCtxList[p_videoFileIndex]->selected_mb_mask);
-    for (l_i = 0; l_i < _mbHeight; ++l_i) {
+    /*for (l_i = 0; l_i < _mbHeight; ++l_i) {
         free(gVideoCodecCtxList[p_videoFileIndex]->pred_dc_dir[l_i]);
     }
-    free(gVideoCodecCtxList[p_videoFileIndex]->pred_dc_dir);
+    free(gVideoCodecCtxList[p_videoFileIndex]->pred_dc_dir);*/
 }
 
 int *mbStartPos;
@@ -441,18 +441,19 @@ static void load_gop_dc_pred_direction(int p_videoFileIndex) {
 
 
 static void load_frame_dc_pred_direction(int p_videoFileIndex, int _height, int _width) {
-	FILE *testF;
+//	FILE *testF;
 	int i, j;
     LOGI(10, "load_frame_dc_pred_direction\n");
-	memset(gVideoCodecCtxList[p_videoFileIndex]->pred_dc_dir, 0, _height*_width*sizeof(gVideoCodecCtxList[p_videoFileIndex]->pred_dc_dir[0][0]));
+	//memset(gVideoCodecCtxList[p_videoFileIndex]->pred_dc_dir, 0, _height*_width*sizeof(gVideoCodecCtxList[p_videoFileIndex]->pred_dc_dir[0][0]));
     gVideoCodecCtxList[p_videoFileIndex]->pred_dc_dir = dcpPosMove;
-	testF = fopen("test.txt", "a+");
+	/*testF = fopen("test.txt", "a+");
 	for (i = 0; i < _height; ++i) {
 		for (j = 0; j < _width; ++j) {
-			fprintf("%d:%d:%d\n", i, j, gVideoCodecCtxList[p_videoFileIndex]->pred_dc_dir[i][j]);
+			//fprintf("%d:%d:%d\n", i, j, *(gVideoCodecCtxList[p_videoFileIndex]->pred_dc_dir + (i*_width) + j));
+			fprintf(testF, "%d:%d:%d\n", i, j, gVideoCodecCtxList[p_videoFileIndex]->pred_dc_dir[(i*_width) + j]);
 		}
 	}
-	fclose(testF);
+	fclose(testF);*/
 	dcpPosMove += _height*_width;
     LOGI(10, "load_frame_dc_pred_direction done\n");
 }
@@ -982,7 +983,7 @@ void decode_a_video_packet(int p_videoFileIndex, int _roiStH, int _roiStW, int _
 	    l_dcpF = fopen(l_dcpFName, "w");
 	    for (l_i = 0; l_i < l_mbHeight; ++l_i) {
             for (l_j = 0; l_j < l_mbWidth; ++l_j) {
-		    	fprintf(l_dcpF, "%d:", gVideoCodecCtxList[p_videoFileIndex]->pred_dc_dir[l_i][l_j]);
+		    	//fprintf(l_dcpF, "%d:", gVideoCodecCtxList[p_videoFileIndex]->pred_dc_dir[l_i][l_j]);
 	        }
 	 		fprintf(l_dcpF, "\n");
 	    }

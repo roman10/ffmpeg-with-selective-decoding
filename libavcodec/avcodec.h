@@ -2915,7 +2915,8 @@ typedef struct AVCodecContext {
     */
     int allow_selective_decoding;
     unsigned char **selected_mb_mask;
-    unsigned char **pred_dc_dir;
+    //unsigned char **pred_dc_dir;
+	unsigned char *pred_dc_dir;
     //int roi_start_mb_x, roi_start_mb_y, roi_end_mb_x, roi_end_mb_y;
     int dump_dependency;
     /*char *dep_gop_file_name;
