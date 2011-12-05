@@ -303,7 +303,7 @@ void load_frame_mb_edindex(int p_videoFileIndex) {
 	LOGI(10, "file size: %ld", sbuf.st_size);
 	//mbEndPos = mmap((caddr_t)0, sbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	//mbEndPos = mmap(0, sbuf.st_size, PROT_READ, MAP_SHARED, fd, 0);
-	mbEndPos = sbuf.st_size;
+	mapEdLen = sbuf.st_size;
 	mbEndPos = mmap(0, sbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (mbEndPos == MAP_FAILED) {
 		LOGE(1, "mmap error");
@@ -638,8 +638,9 @@ static void compute_mb_mask_from_inter_frame_dependency(int _stFrame, int _edFra
         }
     }
     //2. based on inter-dependency list, mark the needed mb
-    //TODO: it's not necessary to process _stFrame, as there's no inter-dependency for it
-    for (l_i = _edFrame; l_i >=  _stFrame; --l_i) {
+    //it's not necessary to process _stFrame, as there's no inter-dependency for it
+//    for (l_i = _edFrame; l_i >=  _stFrame; --l_i) {
+	for (l_i = _edFrame; l_i >  _stFrame; --l_i) {
         for (l_j = 0; l_j <= MAX_MB_H; ++l_j) {
             for (l_k = 0; l_k <= MAX_MB_W; ++l_k) {
                 if (interDepMask[l_i - _stFrame][l_j][l_k] == 1) {
@@ -1007,12 +1008,9 @@ void decode_a_video_packet(int p_videoFileIndex, int _roiStH, int _roiStW, int _
 			//LOGI(10, "%d:%d", mbEndPos[gVideoPacketNum - gStFrame][l_i][l_j], mbStartPos[gVideoPacketNum - gStFrame][l_i][l_j]);
                         //l_selectiveDecodingDataSize += (mbEndPos[gVideoPacketNum - gStFrame][l_i][l_j] - mbStartPos[gVideoPacketNum - gStFrame][l_i][l_j]);
 						l_selectiveDecodingDataSize += ((*lMbEdPos) - (*lMbStPos));
-						++lMbEdPos;
-						++lMbStPos;
-                    } else {
-						++lMbEdPos;
-						++lMbStPos;
-					}
+                    } 
+					++lMbEdPos;
+					++lMbStPos;
                 }
             } 
             LOGI(10, "total number of bits: %d", l_selectiveDecodingDataSize);
@@ -1037,12 +1035,9 @@ void decode_a_video_packet(int p_videoFileIndex, int _roiStH, int _roiStW, int _
                     if (gVideoCodecCtxList[p_videoFileIndex]->selected_mb_mask[l_i][l_j] == 1) {
                         l_bufPos = copy_bits(gVideoPacket.data, gVideoPacket2.data, *lMbStPos, (*lMbEdPos) - (*lMbStPos), l_bufPos);
 						fprintf(lTestF, "%d:%d:%d:%d\n", l_i, l_j, (*lMbStPos), (*lMbEdPos));
-						++lMbEdPos;
-						++lMbStPos;
-                    } else {
-						++lMbEdPos;
-						++lMbStPos;
-					}
+                    } 
+					++lMbEdPos;
+					++lMbStPos;
                 }
             }
 			fflush(lTestF);
