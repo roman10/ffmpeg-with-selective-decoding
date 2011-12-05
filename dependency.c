@@ -326,6 +326,7 @@ static void load_intra_frame_mb_dependency(int p_videoFileIndex, int _stFrame, i
             }
         }
     }
+	//memset(intraDep, 0, sizeof(interDep[0][0][0][0])*MAX_FRAME_NUM_IN_GOP*MAX_MB_H*MAX_MB_W*MAX_DEP_MB);
     while (fgets(aLine, 40, gVideoCodecCtxList[p_videoFileIndex]->g_intraDepF) != NULL) {
         //parse the line
         //get the frame number, mb position first
@@ -363,7 +364,7 @@ static void load_inter_frame_mb_dependency(int p_videoFileIndex, int _stFrame, i
     if (gVideoCodecCtxList[p_videoFileIndex]->g_interDepF == NULL) {
         LOGE(1, "no valid inter frame mb dependency!!!");
     }
-    for (l_idxF = 0; l_idxF < MAX_FRAME_NUM_IN_GOP; ++l_idxF) {
+    /*for (l_idxF = 0; l_idxF < MAX_FRAME_NUM_IN_GOP; ++l_idxF) {
         for (l_idxH = 0; l_idxH < MAX_MB_H; ++l_idxH) {
             for (l_idxW = 0; l_idxW < MAX_MB_W; ++l_idxW) {
                 for (l_curDepIdx = 0; l_curDepIdx < MAX_DEP_MB; ++l_curDepIdx) {
@@ -372,7 +373,8 @@ static void load_inter_frame_mb_dependency(int p_videoFileIndex, int _stFrame, i
                 }
             }
         }
-    }
+    }*/
+	memset(interDep, 0, sizeof(interDep[0][0][0][0])*MAX_FRAME_NUM_IN_GOP*MAX_MB_H*MAX_MB_W*MAX_DEP_MB);
     while (fgets(aLine, 40, gVideoCodecCtxList[p_videoFileIndex]->g_interDepF) != NULL) {
         //get the frame number, mb position first
         if ((aToken = strtok(aLine, ":")) != NULL) 
@@ -667,13 +669,14 @@ if we know the roi for the entire GOP, we can pre-calculate the needed mbs at ev
 static void compute_mb_mask_from_inter_frame_dependency(int _stFrame, int _edFrame, int _stH, int _stW, int _edH, int _edW) {
     int l_i, l_j, l_k, l_m;
     LOGI(10, "start of compute_mb_mask_from_inter_frame_dependency");
-    for (l_i = 0; l_i < MAX_FRAME_NUM_IN_GOP; ++l_i) {
+    /*for (l_i = 0; l_i < MAX_FRAME_NUM_IN_GOP; ++l_i) {
         for (l_j = 0; l_j < MAX_MB_H; ++l_j) {
             for (l_k = 0; l_k < MAX_MB_W; ++l_k) {
                 interDepMask[l_i][l_j][l_k] = 0;
             }
         }
-    }
+    }*/
+	memset(interDepMask, 0, sizeof(interDepMask[0][0][0])*MAX_FRAME_NUM_IN_GOP*MAX_MB_H*MAX_MB_W);
     //from last frame in the GOP, going backwards to the first frame of the GOP
     //1. mark the roi as needed
     for (l_i = _edFrame; l_i >= _stFrame; --l_i) {
@@ -687,12 +690,16 @@ static void compute_mb_mask_from_inter_frame_dependency(int _stFrame, int _edFra
     //it's not necessary to process _stFrame, as there's no inter-dependency for it
 //    for (l_i = _edFrame; l_i >=  _stFrame; --l_i) {
 	for (l_i = _edFrame; l_i >  _stFrame; --l_i) {
+		//as we initialize the interDepMask to zero, we don't have a way to tell whether the upper left mb should be decoded, we always mark it as needed
+		interDepMask[l_i - 1 - _stFrame][0][0] = 1;
         for (l_j = 0; l_j <= MAX_MB_H; ++l_j) {
             for (l_k = 0; l_k <= MAX_MB_W; ++l_k) {
                 if (interDepMask[l_i - _stFrame][l_j][l_k] == 1) {
                     for (l_m = 0; l_m < MAX_DEP_MB; ++l_m) {
                         //mark the needed mb in the previous frame
                         if ((interDep[l_i - _stFrame][l_j][l_k][l_m].h < 0) || (interDep[l_i - _stFrame][l_j][l_k][l_m].w < 0))
+                            continue;
+						if ((interDep[l_i - _stFrame][l_j][l_k][l_m].h == 0) && (interDep[l_i - _stFrame][l_j][l_k][l_m].w == 0))
                             continue;
                         LOGI(20, "%d,%d,%d,%d,%d,%d\n", l_i, l_j, l_k, l_m, interDep[l_i - _stFrame][l_j][l_k][l_m].h, interDep[l_i - _stFrame][l_j][l_k][l_m].w);
                         interDepMask[l_i - 1 - _stFrame][interDep[l_i - _stFrame][l_j][l_k][l_m].h][interDep[l_i - _stFrame][l_j][l_k][l_m].w] = 1;
