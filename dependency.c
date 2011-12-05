@@ -184,7 +184,9 @@ void free_selected_decoding_fields(int p_videoFileIndex, int _mbHeight) {
 }
 
 int *mbStartPos;
+int mapStLen;
 int *mbEndPos;
+int mapEdLen;
 
 struct MBIdx intraDep[MAX_FRAME_NUM_IN_GOP][MAX_MB_H][MAX_MB_W][MAX_DEP_MB];
 struct MBIdx interDep[MAX_FRAME_NUM_IN_GOP][MAX_MB_H][MAX_MB_W][MAX_DEP_MB];
@@ -237,6 +239,15 @@ int interDepMask[MAX_FRAME_NUM_IN_GOP][MAX_MB_H][MAX_MB_W];
     }
      LOGI(10, "+++++load_frame_mb_index finished, exit the function");
 }*/
+
+void unload_frame_mb_stindex(void) {
+	munmap(mbStartPos, mapStLen);
+}
+
+void unload_frame_mb_edindex(void) {
+	munmap(mbEndPos, mapEdLen);
+}
+
 void load_frame_mb_stindex(int p_videoFileIndex) {
 	char curDir[100];
 	int fd;
@@ -265,6 +276,7 @@ void load_frame_mb_stindex(int p_videoFileIndex) {
 	//mbStartPos = mmap((caddr_t)0, sbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	//mbStartPos = mmap(0, sbuf.st_size, PROT_READ, MAP_SHARED, fd, 0);
 	//mbStartPos = mmap(0, sbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	mapStLen = sbuf.st_size;
 	mbStartPos = mmap(0, sbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0)	;
 	//mbStartPos = mmap(0, sbuf.st_size, PROT_READ, MAP_SHARED, fd, 0);
 	if (mbStartPos == MAP_FAILED) {
@@ -276,7 +288,7 @@ void load_frame_mb_stindex(int p_videoFileIndex) {
     LOGI(10, "+++++load_frame_mb_stindex finished, exit the function");
 }
 
-static void load_frame_mb_edindex(int p_videoFileIndex) {
+void load_frame_mb_edindex(int p_videoFileIndex) {
 	int fd;
 	struct stat sbuf;
     LOGI(10, "+++++load_frame_mb_edindex, file: %s", gVideoCodecCtxList[p_videoFileIndex]->g_mbEdPosFileName);
@@ -291,6 +303,7 @@ static void load_frame_mb_edindex(int p_videoFileIndex) {
 	LOGI(10, "file size: %ld", sbuf.st_size);
 	//mbEndPos = mmap((caddr_t)0, sbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	//mbEndPos = mmap(0, sbuf.st_size, PROT_READ, MAP_SHARED, fd, 0);
+	mbEndPos = sbuf.st_size;
 	mbEndPos = mmap(0, sbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (mbEndPos == MAP_FAILED) {
 		LOGE(1, "mmap error");
@@ -822,7 +835,8 @@ void decode_a_video_packet(int p_videoFileIndex, int _roiStH, int _roiStW, int _
 #ifdef DUMP_SELECTED_MB_MASK
     FILE *l_maskF;    
 #endif
-	FILE *l_yuvF;
+	//FILE *l_yuvF;
+	FILE *lTestF;
     /*read the next video packet*/
     LOGI(10, "decode_a_video_packet %d: (%d, %d) (%d, %d)", gVideoPacketNum, _roiStH, _roiStW, _roiEdH, _roiEdW);
     if (gVideoCodecCtxList[p_videoFileIndex]->debug_selective == 1) {
@@ -979,6 +993,7 @@ void decode_a_video_packet(int p_videoFileIndex, int _roiStH, int _roiStW, int _
 	    fclose(l_maskF);
 #endif
            //based on the mask, compose the video packet
+			lTestF = fopen("test.txt", "a+");
 			int *lMbStPos = mbStartPos, *lMbEdPos = mbEndPos;
             l_selectiveDecodingDataSize = 0;
 			lMbStPos += (gVideoPacketNum - gStFrame)*l_mbHeight*l_mbWidth;
@@ -994,10 +1009,14 @@ void decode_a_video_packet(int p_videoFileIndex, int _roiStH, int _roiStW, int _
 						l_selectiveDecodingDataSize += ((*lMbEdPos) - (*lMbStPos));
 						++lMbEdPos;
 						++lMbStPos;
-                    }
+                    } else {
+						++lMbEdPos;
+						++lMbStPos;
+					}
                 }
             } 
             LOGI(10, "total number of bits: %d", l_selectiveDecodingDataSize);
+			fprintf(lTestF, "%d\n", l_selectiveDecodingDataSize);
             l_numOfStuffingBits = (l_selectiveDecodingDataSize + 7) / 8 * 8 - l_selectiveDecodingDataSize;
             l_selectiveDecodingDataSize = (l_selectiveDecodingDataSize + 7) / 8;
             LOGI(10, "total number of bytes: %d; number of stuffing bits: %d", l_selectiveDecodingDataSize, l_numOfStuffingBits);
@@ -1006,6 +1025,7 @@ void decode_a_video_packet(int p_videoFileIndex, int _roiStH, int _roiStW, int _
             gVideoPacket2.size = l_selectiveDecodingDataSize;
             memset(gVideoPacket2.data, 0, gVideoPacket2.size + FF_INPUT_BUFFER_PADDING_SIZE);
             l_bufPos = 0;
+			lMbStPos = mbStartPos, lMbEdPos = mbEndPos;
 			lMbStPos += (gVideoPacketNum - gStFrame)*l_mbHeight*l_mbWidth;
 			lMbEdPos += (gVideoPacketNum - gStFrame)*l_mbHeight*l_mbWidth;
             //l_bufPos = copy_bits(gVideoPacket.data, gVideoPacket2.data, 0, mbStartPos[gVideoPacketNum - gStFrame][0][0], l_bufPos);
@@ -1015,10 +1035,17 @@ void decode_a_video_packet(int p_videoFileIndex, int _roiStH, int _roiStW, int _
                 for (l_j = 0; l_j < l_mbWidth; ++l_j) {
                     //put the data bits into the composed video packet
                     if (gVideoCodecCtxList[p_videoFileIndex]->selected_mb_mask[l_i][l_j] == 1) {
-                        l_bufPos = copy_bits(gVideoPacket.data, gVideoPacket2.data, *lMbStPos, *lMbEdPos - *lMbStPos, l_bufPos);
-                    }
+                        l_bufPos = copy_bits(gVideoPacket.data, gVideoPacket2.data, *lMbStPos, (*lMbEdPos) - (*lMbStPos), l_bufPos);
+						fprintf(lTestF, "%d:%d:%d:%d\n", l_i, l_j, (*lMbStPos), (*lMbEdPos));
+						++lMbEdPos;
+						++lMbStPos;
+                    } else {
+						++lMbEdPos;
+						++lMbStPos;
+					}
                 }
             }
+			fflush(lTestF);
             //stuffing the last byte
             for (l_i = 0; l_i < l_numOfStuffingBits; ++l_i) {
                 gVideoPacket2.data[l_selectiveDecodingDataSize - 1] |= (0x01 << l_i);
@@ -1045,12 +1072,13 @@ void decode_a_video_packet(int p_videoFileIndex, int _roiStH, int _roiStW, int _
     #endif
             avcodec_decode_video2(gVideoCodecCtxList[p_videoFileIndex], l_videoFrame, &l_numOfDecodedFrames, &gVideoPacket);
 #endif
-		l_yuvF = fopen("./test.yuv", "w");
+		//this part of the code is dump a yuv file
+		/*l_yuvF = fopen("./test.yuv", "w");
 		fwrite(l_videoFrame->data[0], 1, l_videoFrame->linesize[0]*l_videoFrame->linesize[1], l_yuvF);
 		fwrite(l_videoFrame->data[1], 1, l_videoFrame->linesize[0]*l_videoFrame->linesize[1]/4, l_yuvF);
 		fwrite(l_videoFrame->data[2], 1, l_videoFrame->linesize[0]*l_videoFrame->linesize[1]/4, l_yuvF);
 		fclose(l_yuvF);
-		exit(0);
+		exit(0);*/
 		
 		LOGI(10, "avcodec_decode_video2 result: %d", l_numOfDecodedFrames);
 	    if (l_numOfDecodedFrames) {

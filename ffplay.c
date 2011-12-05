@@ -150,6 +150,9 @@ static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, 
 		wait_get_dependency();
 		sprintf(l_depGopRecFileName, "./%s_goprec_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);
 		gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF = fopen(l_depGopRecFileName, "r");
+		//unmap the files
+		unload_frame_mb_stindex();
+		unload_frame_mb_edindex();
 		load_gop_info(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF, &gGopStart, &gGopEnd);
     }
 }
