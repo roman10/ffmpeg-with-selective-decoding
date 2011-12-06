@@ -154,6 +154,7 @@ static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, 
 		unload_frame_mb_stindex();
 		unload_frame_mb_edindex();
 		unload_frame_dc_pred_direction();
+		unload_inter_frame_mb_dependency();
 		load_gop_info(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF, &gGopStart, &gGopEnd);
     }
 }
@@ -245,7 +246,7 @@ void *decode_video(void *arg) {
 		} 
 		//load_frame_mb_stindex(0);
 #if defined(SELECTIVE_DECODING) || defined(NORM_DECODE_DEBUG)
-		render_a_frame(800, 480, 0, 0, 1000, 1800);	//decode frame
+		render_a_frame(800, 480, 0, 0, 150, 800);	//decode frame
 #else
 		render_a_frame(800, 480, 0, 0, 100, 250);	//decode frame
 #endif
