@@ -106,15 +106,15 @@ static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, 
  	    l_roiEh = l_roiEh * (gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height/16) / gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->height;
 		l_roiEw = l_roiEw * (gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width/16) / gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->width;
 		//open the dependency files for this gop
-		sprintf(l_depIntraFileName, "./%s_intra_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);
-		sprintf(l_depInterFileName, "./%s_inter_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);
-		sprintf(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_mbStPosFileName, "./%s_mbstpos_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);
-		sprintf(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_mbEdPosFileName, "./%s_mbedpos_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);
-		sprintf(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_dcPredFileName, "./%s_dcp_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);  	    
+		//sprintf(l_depIntraFileName, "./%s_intra_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);
+		//sprintf(l_depInterFileName, "./%s_inter_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);
+		//sprintf(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_mbStPosFileName, "./%s_mbstpos_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);
+		//sprintf(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_mbEdPosFileName, "./%s_mbedpos_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);
+		//sprintf(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_dcPredFileName, "./%s_dcp_gop%d.txt", gVideoFileNameList[gCurrentDecodingVideoFileIndex], g_decode_gop_num);  	    
 	    //gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_mbPosF = fopen(l_depMbPosFileName, "r");
 	    //gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_dcPredF = fopen(l_depDcpFileName, "r");
-	    gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_intraDepF = fopen(l_depIntraFileName, "r");
-	    gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_interDepF = fopen(l_depInterFileName, "r");
+	    //gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_intraDepF = fopen(l_depIntraFileName, "r");
+	    //gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_interDepF = fopen(l_depInterFileName, "r");
 		//load the pre computation result and compute the inter frame dependency
 		LOGI(10, "decode video %d with roi (%d:%d) to (%d:%d)", gCurrentDecodingVideoFileIndex, l_roiSh, l_roiSw, l_roiEh, l_roiEw);
         prepare_decode_of_gop(gCurrentDecodingVideoFileIndex, gGopStart, gGopEnd, l_roiSh, l_roiSw, l_roiEh, l_roiEw);
@@ -134,8 +134,8 @@ static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, 
 		fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF);
         //fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_mbPosF);
         //fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_dcPredF);
-        fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_intraDepF);
-        fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_interDepF);
+        //fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_intraDepF);
+        //fclose(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_interDepF);
 		/*check if we need to update zoom level, note that we only update the zoom level at the end of GOP*/
 		if (gZoomLevelUpdate != 0) {
 			gCurrentDecodingVideoFileIndex += gZoomLevelUpdate;
@@ -155,6 +155,7 @@ static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, 
 		unload_frame_mb_edindex();
 		unload_frame_dc_pred_direction();
 		unload_inter_frame_mb_dependency();
+		unload_intra_frame_mb_dependency();
 		load_gop_info(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF, &gGopStart, &gGopEnd);
     }
 }
@@ -191,8 +192,8 @@ static void andzop_finish(int pNumOfFile) {
 #if defined(SELECTIVE_DECODING) || defined(NORM_DECODE_DEBUG)
 		/*close all dependency files*/
 		//fclose(gVideoCodecCtxList[l_i]->g_mbPosF);
-		fclose(gVideoCodecCtxList[l_i]->g_intraDepF);
-		fclose(gVideoCodecCtxList[l_i]->g_interDepF);
+		//fclose(gVideoCodecCtxList[l_i]->g_intraDepF);
+		//fclose(gVideoCodecCtxList[l_i]->g_interDepF);
 		//fclose(gVideoCodecCtxList[l_i]->g_dcPredF);
 		fclose(gVideoCodecCtxList[l_i]->g_gopF);
 #endif

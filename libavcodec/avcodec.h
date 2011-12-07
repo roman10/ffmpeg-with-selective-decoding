@@ -2930,6 +2930,7 @@ typedef struct AVCodecContext {
 	char g_mbStPosFileName[100];
 	char g_mbEdPosFileName[100];
     FILE *g_intraDepF;
+	char g_intraDepFileName[100];
     FILE *g_interDepF;
 	char g_interDepFileName[100];
     FILE *g_dcPredF;

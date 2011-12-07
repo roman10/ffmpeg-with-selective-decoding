@@ -115,4 +115,5 @@ void unload_frame_mb_stindex(void);
 void unload_frame_mb_edindex(void);
 void unload_frame_dc_pred_direction(void);
 void unload_inter_frame_mb_dependency(void);
+void unload_intra_frame_mb_dependency(void);
 
