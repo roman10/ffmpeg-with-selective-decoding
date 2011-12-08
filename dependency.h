@@ -27,7 +27,7 @@
 
 /*for logs*/
 //#define ANDROID_BUILD
-#define LOG_LEVEL 10
+#define LOG_LEVEL 20
 #ifdef ANDROID_BUILD
 	/*for android logs*/
 	/*android specific headers*/
@@ -51,7 +51,8 @@
 #define MAX_FRAME_NUM_IN_GOP 50
 #define MAX_MB_H 100
 #define MAX_MB_W 100
-#define MAX_DEP_MB 4
+#define MAX_INTER_DEP_MB 4
+#define MAX_INTRA_DEP_MB 3
 
 #define DUMP_PACKET
 
