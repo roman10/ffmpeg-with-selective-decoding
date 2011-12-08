@@ -699,7 +699,7 @@ static void compute_mb_mask_from_intra_frame_dependency_for_single_mb(int p_vide
         }
         gVideoCodecCtxList[p_videoFileIndex]->selected_mb_mask[l_mb.h][l_mb.w]++;
         for (l_i = 0; l_i < 3; ++l_i) {
-			p = pframe + (l_mb.h*_width + l_mb.w)*8 + l_i*2;
+			p = pframe + (l_mb.h*_width + l_mb.w)*6 + l_i*2;
             if ((*p !=0) || (*(p+1) != 0)) {
 				l_mb2.h = *p;
 				l_mb2.w = *(p+1);
