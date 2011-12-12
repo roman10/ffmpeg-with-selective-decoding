@@ -738,8 +738,10 @@ if we know the roi for the entire GOP, we can pre-calculate the needed mbs at ev
 static void compute_mb_mask_from_inter_frame_dependency(int p_videoFileIndex, int _stFrame, int _edFrame, int _stH, int _stW, int _edH, int _edW) {
     int l_i, l_j, l_k, l_m;
 	int l_mbHeight, l_mbWidth;
-	//FILE *tf, *tf1;
-	//tf = fopen("test1.txt", "w");
+	FILE *tf, *tf1;
+	char logFileName[100];
+	sprintf(logFileName, "test1_%d.txt", _stFrame);
+	tf = fopen(logFileName, "w");
 	//tf1 = fopen("test2.txt", "w");
 	l_mbHeight = (gVideoCodecCtxList[p_videoFileIndex]->height + 15) / 16;
     l_mbWidth = (gVideoCodecCtxList[p_videoFileIndex]->width + 15) / 16;
@@ -774,7 +776,7 @@ static void compute_mb_mask_from_inter_frame_dependency(int p_videoFileIndex, in
 						} else 
 						if (((*interDepMapMove) == 0) && (*(interDepMapMove+1) == 0)) {
 						} else {
-							//fprintf(tf, "%d,%d,%d,%d,%d,%d\n", l_i, l_j, l_k, l_m, *interDepMapMove, *(interDepMapMove+1));
+							fprintf(tf, "%d,%d,%d,%d,%d,%d\n", l_i, l_j, l_k, l_m, *interDepMapMove, *(interDepMapMove+1));
 							//fprintf(tf, "%d,%d,%d,%d,%d\n", l_i, l_j, l_k, *interDepMapMove, *(interDepMapMove+1));
                         	interDepMask[l_i - 1 - _stFrame][*interDepMapMove][*(interDepMapMove+1)] = 1;
 						}
@@ -786,8 +788,10 @@ static void compute_mb_mask_from_inter_frame_dependency(int p_videoFileIndex, in
             }
         }
     }
-	//fclose(tf);
+	fclose(tf);
 	//fclose(tf1);
+    //we can unload the inter frame dependency file here
+    unload_inter_frame_mb_dependency();
     LOGI(10, "end of compute_mb_mask_from_inter_frame_dependency");
 }
 
@@ -944,6 +948,9 @@ void dep_decode_a_video_packet(int p_videoFileIndex) {
 							if ((aToken = strtok(NULL, ":")) != NULL)
 								l_idxW = atoi(aToken);
 							//get the dependency mb
+                            if ((l_idxF == 18) && (l_idxH == 4) && (l_idxW == 0)) {
+                                LOGI(1, "line: %s", aLine);
+                            }
 							do {
 								aToken = strtok(NULL, ":");
 								if (aToken != NULL)  l_depH = (unsigned char) atoi(aToken);
@@ -952,13 +959,13 @@ void dep_decode_a_video_packet(int p_videoFileIndex) {
 								if (aToken != NULL)  l_depW = (unsigned char) atoi(aToken);
 								else break;
 								//put the dependencies into the array
-								if (l_depH == l_idxH - 1 && l_depW == l_idxW) {
+								if ((l_depH == l_idxH - 1) && (l_depW == l_idxW)) {
 									intraDep[0] = l_depH;
 									intraDep[1] = l_depW;
-								} else if (l_depH == l_idxH - 1 && l_depW == l_idxW + 1) {
+								} else if ((l_depH == l_idxH - 1) && (l_depW == l_idxW + 1)) {
 									intraDep[2] = l_depH;
 									intraDep[3] = l_depW;
-								} else if (l_depH == l_idxH && l_depW == l_idxW - 1) {
+								} else if ((l_depH == l_idxH) && (l_depW == l_idxW - 1)) {
 									intraDep[4] = l_depH;
 									intraDep[5] = l_depW;
 								} else {
@@ -966,9 +973,36 @@ void dep_decode_a_video_packet(int p_videoFileIndex) {
 								}
 							} while (aToken != NULL);
 							fwrite(intraDep, 1, 6, postF);
+							if ((l_idxF == 18) && (l_idxH == 4) && (l_idxW == 0)) {
+                                LOGI(1, "line: %d:%d:%d:%d:%d:%d:", intraDep[0], intraDep[1], intraDep[2], intraDep[3], intraDep[4], intraDep[5]);
+								//exit(0);
+                            }
 						}
 						fclose(tmpF);
 						fclose(postF);
+						//[REMOVE]for verification of file: verified the content written to binary file is correct
+						//if we want to debug for 2nd gop onwards, we'll need to change the interface to include gop number
+						//TODO: the output file differs from .tmp file
+						/*load_intra_frame_mb_dependency(p_videoFileIndex);
+						intraDepMapMove = intraDepMap;
+						sprintf(l_depIntraFileName, "%s_intra_gop%d.txt.ver", gVideoFileNameList[p_videoFileIndex], gVideoPacketQueueList[p_videoFileIndex].dep_gop_num);
+						tmpF = fopen(l_depIntraFileName, "w");
+						postF = fopen(gVideoCodecCtxDepList[p_videoFileIndex]->g_intraDepFileName, "r");
+						for (i = 13; i <= 24; ++i) {
+							for (j =0; j < (gVideoCodecCtxList[p_videoFileIndex]->height + 15) / 16; ++j) {
+								for (k = 0; k < (gVideoCodecCtxList[p_videoFileIndex]->width + 15) / 16; ++k) {
+									fprintf(tmpF, "%d:%d:%d:", i, j, k);
+									for (m = 0; m < 3; ++m) {
+										fprintf(tmpF, "%d:%d:", *intraDepMapMove, *(intraDepMapMove+1));
+										intraDepMapMove += 2;
+									}
+									fprintf(tmpF, "\n");
+								}
+							}
+						}
+						fclose(tmpF);
+						fclose(postF);
+						unload_intra_frame_mb_dependency();*/
 					}
 					++gVideoPacketQueueList[p_videoFileIndex].dep_gop_num;
 				}

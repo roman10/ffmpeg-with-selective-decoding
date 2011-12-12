@@ -154,7 +154,6 @@ static void render_a_frame(int _width, int _height, float _roiSh, float _roiSw, 
 		unload_frame_mb_stindex();
 		unload_frame_mb_edindex();
 		unload_frame_dc_pred_direction();
-		unload_inter_frame_mb_dependency();
 		unload_intra_frame_mb_dependency();
 		load_gop_info(gVideoCodecCtxList[gCurrentDecodingVideoFileIndex]->g_gopF, &gGopStart, &gGopEnd);
     }
